@@ -328,50 +328,162 @@ function BagFrame:PassesSearchFilter(itemData)
     return matches
 end
 
--- Update money display with colored text (WoW 1.12.1 version like pfUI)
 function BagFrame:UpdateMoney()
-    local currentMoney = addon.Modules.MoneyTracker:GetCurrentMoney()
     local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
 
     if not moneyFrame then
-        addon:Debug("MoneyFrame not found!")
-        return
+        addon:Debug("MoneyFrame not found! Checking parent...")
+        addon:Debug("Guda_BagFrame exists: " .. tostring(getglobal("Guda_BagFrame") ~= nil))
+
+        -- Try to create it manually
+        self:CreateMoneyFrame()
+        moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
     end
 
-    -- Create text frame if it doesn't exist
-    if not moneyFrame.text then
-        moneyFrame.text = moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        moneyFrame.text:SetPoint("RIGHT", moneyFrame, "RIGHT", -15, 0)
-        moneyFrame.text:SetJustifyH("RIGHT")
+    if moneyFrame then
+        MoneyFrame_Update("Guda_BagFrame_MoneyFrame", GetMoney())
+        moneyFrame:Show()
 
-        -- No visible backdrop - just invisible frame for mouse events
+        -- Ensure tooltip overlay exists
+        self:EnsureMoneyTooltipOverlay()
 
-        -- Set hit rect to make entire frame area responsive to mouse
-        -- This ensures hovering anywhere in the 180x35 frame triggers OnEnter
-        moneyFrame:SetHitRectInsets(0, 0, 0, 0)
+        -- Also add tooltip to toolbar empty space
+        self:SetupToolbarTooltip()
+    else
+        addon:Debug("Still couldn't find or create MoneyFrame!")
+    end
+end
 
-        -- Raise frame level to ensure it's on top and can receive mouse events
-        moneyFrame:SetFrameLevel(moneyFrame:GetParent():GetFrameLevel() + 10)
+function BagFrame:CreateMoneyFrame()
+    local moneyFrame = CreateFrame("Frame", "Guda_BagFrame_MoneyFrame", Guda_BagFrame, "SmallMoneyFrameTemplate")
+    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BagFrame, "BOTTOMRIGHT", -15, 10)
+    moneyFrame:SetWidth(180)
+    moneyFrame:SetHeight(35)
+    addon:Debug("MoneyFrame created via CreateMoneyFrame")
+end
 
-        moneyFrame:Show() -- Ensure frame is visible
+-- Setup tooltip on toolbar empty space
+function BagFrame:SetupToolbarTooltip()
+    local toolbar = getglobal("Guda_BagFrame_Toolbar")
+    if not toolbar then return end
+
+    -- Only set up once
+    if toolbar.tooltipSetup then return end
+
+    -- Get the existing OnEnter script (if any)
+    local originalOnEnter = toolbar:GetScript("OnEnter")
+
+    -- Set new OnEnter that shows money tooltip
+    toolbar:SetScript("OnEnter", function()
+        -- Call original if it exists
+        if originalOnEnter then
+            originalOnEnter()
+        end
+
+        -- Show money tooltip
+        addon:Debug("Toolbar OnEnter - showing money tooltip")
+        Guda_BagFrame_MoneyOnEnter(getglobal("Guda_BagFrame_MoneyFrame"))
+    end)
+
+    -- Set OnLeave to hide tooltip
+    toolbar:SetScript("OnLeave", function()
+        addon:Debug("Toolbar OnLeave - hiding tooltip")
+        GameTooltip:Hide()
+    end)
+
+    toolbar.tooltipSetup = true
+    addon:Debug("Toolbar tooltip handlers set up")
+end
+
+-- Create transparent overlay for money tooltip
+function BagFrame:EnsureMoneyTooltipOverlay()
+    local overlayName = "Guda_BagFrame_MoneyTooltipOverlay"
+    local overlay = getglobal(overlayName)
+
+    if not overlay then
+        local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
+        if not moneyFrame then return end
+
+        -- Create transparent overlay frame
+        overlay = CreateFrame("Frame", overlayName, moneyFrame)
+        overlay:SetAllPoints(moneyFrame)
+        overlay:SetFrameLevel(moneyFrame:GetFrameLevel() + 1)
+        overlay:EnableMouse(true)
+
+        -- Set tooltip handlers on overlay
+        overlay:SetScript("OnEnter", function()
+            addon:Debug("Money overlay OnEnter triggered")
+            Guda_BagFrame_MoneyOnEnter(moneyFrame)
+        end)
+
+        overlay:SetScript("OnLeave", function()
+            addon:Debug("Money overlay OnLeave triggered")
+            GameTooltip:Hide()
+        end)
+
+        -- Forward drag events to bag frame (if not locked)
+        overlay:SetScript("OnMouseDown", function()
+            local searchBox = getglobal("Guda_BagFrame_SearchBar_SearchBox")
+            if searchBox then
+                searchBox:ClearFocus()
+            end
+
+            local bagFrame = getglobal("Guda_BagFrame")
+            local isLocked = addon.Modules.DB and addon.Modules.DB:GetSetting("lockBags")
+
+            if bagFrame and not isLocked and arg1 == "LeftButton" then
+                bagFrame:StartMoving()
+            end
+        end)
+
+        overlay:SetScript("OnMouseUp", function()
+            local bagFrame = getglobal("Guda_BagFrame")
+            local isLocked = addon.Modules.DB and addon.Modules.DB:GetSetting("lockBags")
+
+            if bagFrame and not isLocked then
+                bagFrame:StopMovingOrSizing()
+                SaveBagFramePosition()
+            end
+        end)
+
+        addon:Debug("Money tooltip overlay created")
     end
 
-    -- Calculate gold, silver, copper
-    local gold = math.floor(currentMoney / 10000)
-    local silver = math.floor(mod(currentMoney, 10000) / 100)
-    local copper = mod(currentMoney, 100)
+    overlay:Show()
+end
 
-    -- Create colored string like pfUI (white numbers, colored letters)
-    local moneyString = ""
-    if gold > 0 then
-        moneyString = moneyString .. "|cffffffff" .. gold .. "|cffffd700g"
-    end
-    if silver > 0 or gold > 0 then
-        moneyString = moneyString .. "|cffffffff " .. silver .. "|cffc7c7cfs"
-    end
-    moneyString = moneyString .. "|cffffffff " .. copper .. "|cffeda55fc"
+-- Money frame OnLoad handler
+function Guda_BagFrame_MoneyFrame_OnLoad(self)
+    addon:Debug("MoneyFrame OnLoad called for: " .. self:GetName())
 
-    moneyFrame.text:SetText(moneyString)
+    -- Set tooltip handlers on all money denomination buttons
+    local buttons = {"GoldButton", "SilverButton", "CopperButton"}
+
+    for _, buttonName in ipairs(buttons) do
+        local fullName = self:GetName() .. buttonName
+        local button = getglobal(fullName)
+        addon:Debug("Looking for button: " .. fullName .. " - Found: " .. tostring(button ~= nil))
+        if button then
+            button:SetScript("OnEnter", function()
+                addon:Debug("Money button OnEnter triggered")
+                Guda_BagFrame_MoneyOnEnter(this:GetParent())
+            end)
+            button:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+        end
+    end
+
+    -- Also try setting handlers directly on the parent frame
+    addon:Debug("Setting handlers on parent frame as fallback")
+    self:EnableMouse(true)
+    self:SetScript("OnEnter", function()
+        addon:Debug("Parent frame OnEnter triggered")
+        Guda_BagFrame_MoneyOnEnter(this)
+    end)
+    self:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
 end
 
 -- Money tooltip handler
@@ -386,12 +498,10 @@ function Guda_BagFrame_MoneyOnEnter(self)
     local chars = addon.Modules.DB:GetAllCharacters(true)
     local totalMoney = addon.Modules.DB:GetTotalMoney(true)
 
-    -- Header with faction/realm total
-    GameTooltip:AddDoubleLine(
-        "Faction/realm-wide gold:",
-        addon.Modules.Utils:FormatMoney(totalMoney),
-        1, 0.82, 0,
-        1, 1, 1
+    -- Header with faction/realm total - use colored money
+    GameTooltip:AddLine(
+        "Faction/realm-wide gold: " .. addon.Modules.Utils:FormatMoney(totalMoney, false, true),
+        1, 0.82, 0
     )
     GameTooltip:AddLine(" ")
 
@@ -406,11 +516,11 @@ function Guda_BagFrame_MoneyOnEnter(self)
             colorR, colorG, colorB = classColor.r, classColor.g, classColor.b
         end
 
-        GameTooltip:AddDoubleLine(
-            char.name,
-            addon.Modules.Utils:FormatMoney(char.money or 0),
-            colorR, colorG, colorB,
-            1, 1, 1
+        -- Create colored name
+        local coloredName = addon.Modules.Utils:ColorText(char.name, colorR, colorG, colorB)
+
+        GameTooltip:AddLine(
+            coloredName .. ": " .. addon.Modules.Utils:FormatMoney(char.money or 0, false, true)
         )
     end
 
@@ -547,7 +657,7 @@ function BagFrame:UpdateLockState()
             toolbar:SetScript("OnMouseUp", nil)
         end
 
-        -- Disable dragging on money frame (preserve tooltip handlers)
+        -- Disable dragging on money frame (preserve tooltip handlers on child buttons)
         if moneyFrame and moneyFrame.SetScript then
             moneyFrame:SetScript("OnMouseDown", function()
                 local searchBox = getglobal("Guda_BagFrame_SearchBar_SearchBox")
@@ -556,17 +666,6 @@ function BagFrame:UpdateLockState()
                 end
             end)
             moneyFrame:SetScript("OnMouseUp", nil)
-            -- Preserve tooltip handlers with safety checks
-            moneyFrame:SetScript("OnEnter", function()
-                if Guda_BagFrame_MoneyOnEnter and addon and addon.Modules and addon.Modules.DB and addon.Modules.Utils then
-                    Guda_BagFrame_MoneyOnEnter(this)
-                end
-            end)
-            moneyFrame:SetScript("OnLeave", function()
-                if GameTooltip then
-                    GameTooltip:Hide()
-                end
-            end)
         end
 
         -- Disable dragging on item container
@@ -624,7 +723,7 @@ function BagFrame:UpdateLockState()
             end)
         end
 
-        -- Enable dragging on money frame (preserve tooltip handlers)
+        -- Enable dragging on money frame (preserve tooltip handlers on child buttons)
         if moneyFrame and moneyFrame.SetScript then
             moneyFrame:SetScript("OnMouseDown", function()
                 local searchBox = getglobal("Guda_BagFrame_SearchBar_SearchBox")
@@ -642,17 +741,6 @@ function BagFrame:UpdateLockState()
                 if bagFrame then
                     bagFrame:StopMovingOrSizing()
                     SaveBagFramePosition()
-                end
-            end)
-            -- Preserve tooltip handlers with safety checks
-            moneyFrame:SetScript("OnEnter", function()
-                if Guda_BagFrame_MoneyOnEnter and addon and addon.Modules and addon.Modules.DB and addon.Modules.Utils then
-                    Guda_BagFrame_MoneyOnEnter(this)
-                end
-            end)
-            moneyFrame:SetScript("OnLeave", function()
-                if GameTooltip then
-                    GameTooltip:Hide()
                 end
             end)
         end

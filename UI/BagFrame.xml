@@ -1,4 +1,5 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
 
     <!-- Main Bag Frame -->
     <Frame name="Guda_BagFrame" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent">
@@ -341,33 +342,20 @@
             </Frame>
 
             <!-- Money Display Frame (moved to bottom right) -->
-            <Frame name="$parent_MoneyFrame" enableMouse="true">
-                <Size>
-                    <AbsDimension x="180" y="35"/>
-                </Size>
+            <MoneyFrame name="$parent_MoneyFrame" inherits="SmallMoneyFrameTemplate">
+                <Size x="180" y="35"/>
                 <Anchors>
-                    <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT">
-                        <Offset>
-                            <AbsDimension x="-10" y="10"/>
-                        </Offset>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="Guda_BagFrame" relativePoint="BOTTOMRIGHT">
+                        <Offset x="-15" y="10"/>
                     </Anchor>
                 </Anchors>
                 <Scripts>
-                    <OnMouseDown>
-                        -- Clear search focus when clicking money area
-                        local searchBox = getglobal("Guda_BagFrame_SearchBar_SearchBox")
-                        if searchBox then
-                            searchBox:ClearFocus()
-                        end
-                    </OnMouseDown>
-                    <OnEnter>
-                        Guda_BagFrame_MoneyOnEnter(this)
-                    </OnEnter>
-                    <OnLeave>
-                        GameTooltip:Hide()
-                    </OnLeave>
+                    <OnLoad>
+                        -- Set tooltip handlers on money button children
+                        Guda_BagFrame_MoneyFrame_OnLoad(this)
+                    </OnLoad>
                 </Scripts>
-            </Frame>
+            </MoneyFrame>
 
 
             <!-- Container for item buttons -->

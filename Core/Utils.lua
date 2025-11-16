@@ -6,9 +6,13 @@ local Utils = {}
 addon.Modules.Utils = Utils
 
 -- Format money (copper to gold/silver/copper string) - WoW 1.12.1 version
-function Utils:FormatMoney(copper, showZero)
+function Utils:FormatMoney(copper, showZero, useColors)
     if not copper or copper == 0 then
-        return "0c"
+        if useColors then
+            return "|cFFFFFFFF" .. "0" .. "|r" .. "|cFFEDA55F" .. "c" .. "|r"
+        else
+            return "0c"
+        end
     end
 
     local gold = math.floor(copper / 10000)
@@ -16,13 +20,26 @@ function Utils:FormatMoney(copper, showZero)
     local bronze = mod(copper, 100)
 
     local str = ""
-    if gold > 0 then
-        str = str .. gold .. "g "
+
+    if useColors then
+        -- Colored version for tooltips - white numbers, colored g/s/c letters
+        if gold > 0 then
+            str = str .. "|cFFFFFFFF" .. gold .. "|r" .. "|cFFFFD700" .. "g" .. "|r "
+        end
+        if silver > 0 or gold > 0 then
+            str = str .. "|cFFFFFFFF" .. silver .. "|r" .. "|cFFC7C7CF" .. "s" .. "|r "
+        end
+        str = str .. "|cFFFFFFFF" .. bronze .. "|r" .. "|cFFEDA55F" .. "c" .. "|r"
+    else
+        -- Plain text version
+        if gold > 0 then
+            str = str .. gold .. "g "
+        end
+        if silver > 0 or gold > 0 then
+            str = str .. silver .. "s "
+        end
+        str = str .. bronze .. "c"
     end
-    if silver > 0 or gold > 0 then
-        str = str .. silver .. "s "
-    end
-    str = str .. bronze .. "c"
 
     return str
 end
