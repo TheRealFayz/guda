@@ -43,6 +43,13 @@ function Main:Initialize()
         addon.Modules.BankFrame:Initialize()
         addon.Modules.SettingsPopup:Initialize()
 
+        -- Initialize tooltip
+        if addon.Modules.Tooltip then
+            addon.Modules.Tooltip:Initialize()
+        else
+            addon:Error("Tooltip module not loaded!")
+        end
+
         -- Setup slash commands
         Main:SetupSlashCommands()
 

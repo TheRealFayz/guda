@@ -10,6 +10,7 @@ Core\Init.lua
 Core\Database.lua
 Core\Events.lua
 Core\Utils.lua
+Core\Tooltip.lua
 
 Data\BagScanner.lua
 Data\BankScanner.lua
