@@ -14,8 +14,9 @@ end
 
 -- Count items for a specific character
 local function CountItemsForCharacter(itemID, characterData)
-    local total = 0
-    
+    local bagCount = 0
+    local bankCount = 0
+
     -- Count bags
     if characterData.bags then
         for bagID, bagData in pairs(characterData.bags) do
@@ -24,15 +25,31 @@ local function CountItemsForCharacter(itemID, characterData)
                     if itemData and itemData.link then
                         local slotItemID = GetItemIDFromLink(itemData.link)
                         if slotItemID == itemID then
-                            total = total + (itemData.count or 1)
+                            bagCount = bagCount + (itemData.count or 1)
                         end
                     end
                 end
             end
         end
     end
-    
-    return total
+
+    -- Count bank
+    if characterData.bank then
+        for bagID, bagData in pairs(characterData.bank) do
+            if bagData and bagData.slots then
+                for slotID, itemData in pairs(bagData.slots) do
+                    if itemData and itemData.link then
+                        local slotItemID = GetItemIDFromLink(itemData.link)
+                        if slotItemID == itemID then
+                            bankCount = bankCount + (itemData.count or 1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return bagCount, bankCount
 end
 
 -- Get class color
@@ -58,42 +75,55 @@ function Tooltip:AddInventoryInfo(tooltip, link)
     
     addon:Debug("Processing item ID: " .. itemID)
     
-    local totalCount = 0
+    local totalBags = 0
+    local totalBank = 0
     local characterCounts = {}
-    
+
     -- Count items across all characters
     for charName, charData in pairs(Guda_DB.characters) do
-        local count = CountItemsForCharacter(itemID, charData)
-        if count > 0 then
-            totalCount = totalCount + count
+        local bagCount, bankCount = CountItemsForCharacter(itemID, charData)
+        if bagCount > 0 or bankCount > 0 then
+            totalBags = totalBags + bagCount
+            totalBank = totalBank + bankCount
             table.insert(characterCounts, {
                 name = charData.name or charName,
                 classToken = charData.classToken,
-                count = count
+                bagCount = bagCount,
+                bankCount = bankCount
             })
-            addon:Debug("Found " .. count .. " items on " .. charName)
+            addon:Debug("Found " .. (bagCount + bankCount) .. " items on " .. charName .. " (Bags: " .. bagCount .. ", Bank: " .. bankCount .. ")")
         end
     end
-    
+
+    local totalCount = totalBags + totalBank
+
     -- Only add to tooltip if we found items
     if totalCount > 0 then
         addon:Debug("Adding inventory info - Total: " .. totalCount)
-        
+
         tooltip:AddLine(" ")
         tooltip:AddLine("Inventory", 0.7, 0.7, 0.7)
-        tooltip:AddDoubleLine("Total: " .. totalCount, "", 1, 1, 1)
-        
+        tooltip:AddDoubleLine("Total: " .. totalCount, "(Bags: " .. totalBags .. " | Bank: " .. totalBank .. ")", 1, 1, 1, 0.7, 0.7, 0.7)
+
         -- Sort characters by name
-        table.sort(characterCounts, function(a, b) 
-            return a.name < b.name 
+        table.sort(characterCounts, function(a, b)
+            return a.name < b.name
         end)
-        
-        -- Add character lines
+
+        -- Add character lines with bag and bank breakdown
         for _, charInfo in ipairs(characterCounts) do
             local r, g, b = GetClassColor(charInfo.classToken)
-            tooltip:AddDoubleLine(charInfo.name, "Bags: " .. charInfo.count, r, g, b, 0.7, 0.7, 0.7)
+            local countText = ""
+            if charInfo.bagCount > 0 and charInfo.bankCount > 0 then
+                countText = "Bags: " .. charInfo.bagCount .. " | Bank: " .. charInfo.bankCount
+            elseif charInfo.bagCount > 0 then
+                countText = "Bags: " .. charInfo.bagCount
+            else
+                countText = "Bank: " .. charInfo.bankCount
+            end
+            tooltip:AddDoubleLine(charInfo.name, countText, r, g, b, 0.7, 0.7, 0.7)
         end
-        
+
         tooltip:Show()
     else
         addon:Debug("No items found for ID: " .. itemID)
@@ -102,7 +132,7 @@ end
 
 function Tooltip:Initialize()
     addon:Print("Initializing tooltip module...")
-    
+
     -- Hook SetBagItem
     local oldSetBagItem = GameTooltip.SetBagItem
     function GameTooltip:SetBagItem(bag, slot)
@@ -112,7 +142,7 @@ function Tooltip:Initialize()
             Tooltip:AddInventoryInfo(self, link)
         end
     end
-    
+
     -- Hook SetHyperlink for chat links
     local oldSetHyperlink = GameTooltip.SetHyperlink
     function GameTooltip:SetHyperlink(link)
@@ -121,7 +151,7 @@ function Tooltip:Initialize()
             Tooltip:AddInventoryInfo(self, link)
         end
     end
-    
+
     -- Hook SetInventoryItem for character paperdoll
     local oldSetInventoryItem = GameTooltip.SetInventoryItem
     function GameTooltip:SetInventoryItem(unit, slot)
@@ -131,7 +161,7 @@ function Tooltip:Initialize()
             Tooltip:AddInventoryInfo(self, link)
         end
     end
-    
+
     -- Also hook ItemRefTooltip for chat links
     if ItemRefTooltip then
         local oldItemRefSetHyperlink = ItemRefTooltip.SetHyperlink
@@ -148,23 +178,14 @@ function Tooltip:Initialize()
         addon:Debug("Tooltip cache cleared")
     end
 
-    -- Register for bag updates in Initialize
-    function Tooltip:Initialize()
-        addon:Print("Initializing tooltip module...")
-        
-        -- Your existing hook code...
-        
-        -- Clear cache on bag updates
-        local frame = CreateFrame("Frame")
-        frame:RegisterEvent("BAG_UPDATE")
-        frame:SetScript("OnEvent", function()
-            if event == "BAG_UPDATE" then
-                Tooltip:ClearCache()
-            end
-        end)
-        
-        addon:Print("Tooltip item-count integration enabled")
-    end
-    
+    -- Clear cache on bag updates
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("BAG_UPDATE")
+    frame:SetScript("OnEvent", function()
+        if event == "BAG_UPDATE" then
+            Tooltip:ClearCache()
+        end
+    end)
+
     addon:Print("Tooltip item-count integration enabled")
 end

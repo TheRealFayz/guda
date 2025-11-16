@@ -86,8 +86,17 @@ end
 
 -- OnHide
 function Guda_BagFrame_OnHide(self)
-    -- Release buttons
-    Guda_ReleaseAllButtons()
+    -- Only release buttons that belong to this frame
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if itemContainer then
+        local children = { itemContainer:GetChildren() }
+        for _, child in ipairs(children) do
+            if child.hasItem ~= nil then -- It's an item button
+                child:Hide()
+                child:ClearAllPoints()
+            end
+        end
+    end
 end
 
 -- Toggle visibility
@@ -117,8 +126,17 @@ function BagFrame:Update()
         return
     end
 
-    -- Clear existing buttons
-    Guda_ReleaseAllButtons()
+    -- Only release buttons that belong to this frame
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if itemContainer then
+        local children = { itemContainer:GetChildren() }
+        for _, child in ipairs(children) do
+            if child.hasItem ~= nil then -- It's an item button
+                child:Hide()
+                child:ClearAllPoints()
+            end
+        end
+    end
 
     local bagData
     local isOtherChar = false
@@ -441,10 +459,8 @@ function BagFrame:UpdateBagSlotsInfo(bagData, isOtherChar)
         end
     end
 
-    local freeSlots = totalSlots - usedSlots
-
-    -- Format: "56 / 80" (free / total)
-    infoText:SetText(string.format("%d / %d", freeSlots, totalSlots))
+    -- Format: "24 / 80" (used / total)
+    infoText:SetText(string.format("%d / %d", usedSlots, totalSlots))
     infoText:SetTextColor(0.7, 0.7, 0.7)
 end
 
@@ -487,6 +503,28 @@ function BagFrame:SetupToolbarTooltip()
 
     toolbar.tooltipSetup = true
     addon:Debug("Toolbar tooltip handlers set up")
+end
+
+-- Save bag frame position (always as BOTTOMRIGHT)
+local function SaveBagFramePosition()
+    local frame = getglobal("Guda_BagFrame")
+    if not frame or not addon or not addon.Modules or not addon.Modules.DB then return end
+
+    -- Always save as BOTTOMRIGHT coordinates
+    local right = frame:GetRight()
+    local bottom = frame:GetBottom()
+    local screenWidth = GetScreenWidth()
+
+    if right and bottom and screenWidth then
+        local xOffset = right - screenWidth
+        local yOffset = bottom
+
+        addon.Modules.DB:SetSetting("bagFramePosition", {
+            point = "BOTTOMRIGHT",
+            x = xOffset,
+            y = yOffset
+        })
+    end
 end
 
 -- Create transparent overlay for money tooltip
@@ -1003,28 +1041,6 @@ local function HookDefaultBags()
     local originalCloseAllBags = CloseAllBags
     function CloseAllBags()
         Guda_BagFrame:Hide()
-    end
-end
-
--- Save bag frame position (always as BOTTOMRIGHT)
-local function SaveBagFramePosition()
-    local frame = getglobal("Guda_BagFrame")
-    if not frame or not addon or not addon.Modules or not addon.Modules.DB then return end
-
-    -- Always save as BOTTOMRIGHT coordinates
-    local right = frame:GetRight()
-    local bottom = frame:GetBottom()
-    local screenWidth = GetScreenWidth()
-
-    if right and bottom and screenWidth then
-        local xOffset = right - screenWidth
-        local yOffset = bottom
-
-        addon.Modules.DB:SetSetting("bagFramePosition", {
-            point = "BOTTOMRIGHT",
-            x = xOffset,
-            y = yOffset
-        })
     end
 end
 

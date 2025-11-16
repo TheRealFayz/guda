@@ -35,12 +35,13 @@ function Guda_ItemButton_OnLoad(self)
 end
 
 -- Set item data
-function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter)
+function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter, isReadOnly)
     self.bagID = bagID
     self.slotID = slotID
     self.itemData = itemData
     self.isBank = isBank or false
     self.otherChar = otherCharName
+    self.isReadOnly = isReadOnly or false  -- Track if this is read-only mode
 
     -- Default to true if not specified (for non-filtered displays)
     if matchesFilter == nil then
@@ -261,42 +262,19 @@ function Guda_ItemButton_OnEnter(self)
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-    if self.otherChar then
-        -- Viewing another character's item - show full tooltip like the original
-        if self.itemData.link then
-            -- Extract the hyperlink from the full item link
-            -- Item links are in format: |cFFFFFFFF|Hitem:1234:0:0:0|h[Item Name]|h|r
-            -- SetHyperlink needs just: item:1234:0:0:0
-            local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
-
-            if hyperlink then
-                GameTooltip:SetHyperlink(hyperlink)
-                -- Add "Owned by" line after the original tooltip
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
-            else
-                -- Fallback: try the full link
-                local success, err = pcall(function()
-                    GameTooltip:SetHyperlink(self.itemData.link)
-                end)
-
-                if success then
-                    GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
-                else
-                    -- Last resort: show item name
-                    GameTooltip:AddLine(self.itemData.name or "Unknown Item", 1, 1, 1)
-                    GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
-                end
-            end
-        end
-    else
-        -- Current character's item
-        if self.isBank then
-            GameTooltip:SetInventoryItem("player", BankButtonIDToInvSlotID(self.slotID, self.bagID))
+    -- For bank items, use the item link directly since SetBagItem might not work for bank bags
+    if self.isBank and self.itemData.link then
+        -- Extract hyperlink from item link: |cFFFFFFFF|Hitem:1234:0:0:0|h[Name]|h|r -> item:1234:0:0:0
+        local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
+        if hyperlink then
+            GameTooltip:SetHyperlink(hyperlink)
         else
+            -- Fallback to SetBagItem
             GameTooltip:SetBagItem(self.bagID, self.slotID)
         end
+    else
+        -- For regular bags, use SetBagItem as normal
+        GameTooltip:SetBagItem(self.bagID, self.slotID)
     end
 
     GameTooltip:Show()
@@ -309,8 +287,8 @@ end
 
 -- OnDragStart handler
 function Guda_ItemButton_OnDragStart(self, button)
-    -- Don't allow dragging other characters' items
-    if self.otherChar then
+    -- Don't allow dragging other characters' items or in read-only mode
+    if self.otherChar or self.isReadOnly then
         return
     end
 
@@ -322,8 +300,8 @@ end
 
 -- OnReceiveDrag handler
 function Guda_ItemButton_OnReceiveDrag(self)
-    -- Don't allow dragging to other characters' items
-    if self.otherChar then
+    -- Don't allow dragging to other characters' items or in read-only mode
+    if self.otherChar or self.isReadOnly then
         return
     end
 
@@ -333,8 +311,8 @@ end
 
 -- OnClick handler
 function Guda_ItemButton_OnClick(self, button)
-    -- Don't allow interaction with other characters' items
-    if self.otherChar then
+    -- Don't allow interaction with other characters' items or in read-only mode
+    if self.otherChar or self.isReadOnly then
         return
     end
 

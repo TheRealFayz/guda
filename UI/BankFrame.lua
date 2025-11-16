@@ -8,6 +8,7 @@ addon.Modules.BankFrame = BankFrame
 
 local currentViewChar = nil
 local searchText = ""
+local isReadOnlyMode = false  -- Track if viewing saved bank (read-only) or live bank (interactive)
 
 -- OnLoad
 function Guda_BankFrame_OnLoad(self)
@@ -51,15 +52,17 @@ function BankFrame:Toggle()
     end
 end
 
--- Show specific character's bank
+-- Show specific character's bank (read-only mode)
 function BankFrame:ShowCharacter(fullName)
     currentViewChar = fullName
+    isReadOnlyMode = true  -- Viewing saved bank data (read-only)
     self:Update()
 end
 
--- Show current character's bank
+-- Show current character's bank (interactive mode)
 function BankFrame:ShowCurrentCharacter()
     currentViewChar = nil
+    isReadOnlyMode = false  -- Viewing live bank (interactive)
     self:Update()
 end
 
@@ -81,27 +84,42 @@ function BankFrame:Update()
         end
     end
 
+    -- Determine if we're in read-only mode:
+    -- - If viewing another character → read-only
+    -- - If bank is actually open → interactive (live)
+    -- - Otherwise → read-only (viewing saved data)
+    local bankIsOpen = addon.Modules.BankScanner:IsBankOpen()
+    isReadOnlyMode = currentViewChar ~= nil or not bankIsOpen
+
     local bankData
     local isOtherChar = false
     local charName = ""
 
     if currentViewChar then
+        -- Viewing another character's saved bank
         bankData = addon.Modules.DB:GetCharacterBank(currentViewChar)
         isOtherChar = true
         charName = currentViewChar
         getglobal("Guda_BankFrame_Title"):SetText("Bank - " .. currentViewChar)
     else
-        bankData = addon.Modules.DB:GetCharacterBank(addon.Modules.DB:GetPlayerFullName())
-        if not bankData or not next(bankData) then
-            -- No saved bank data, use live scan if bank is open
-            if addon.Modules.BankScanner:IsBankOpen() then
-                bankData = addon.Modules.BankScanner:ScanBank()
-            end
+        -- Viewing current character's bank
+        if bankIsOpen then
+            -- Bank is actually open - use live data (interactive mode)
+            bankData = addon.Modules.BankScanner:ScanBank()
+        else
+            -- Bank is closed - use saved data (read-only mode)
+            bankData = addon.Modules.DB:GetCharacterBank(addon.Modules.DB:GetPlayerFullName())
         end
         getglobal("Guda_BankFrame_Title"):SetText("Guda Bank")
     end
 
     self:DisplayItems(bankData, isOtherChar, charName)
+
+    -- Update money
+    self:UpdateMoney()
+
+    -- Update bank slots info
+    self:UpdateBankSlotsInfo(bankData, isOtherChar)
 end
 
 -- Display items
@@ -146,7 +164,8 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", xPos, yPos)
 
                 -- Set item data with filter match info
-                Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter)
+                -- Pass isReadOnlyMode to disable interaction for saved banks
+                Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, isReadOnlyMode)
 
                 -- Advance position
                 col = col + 1
@@ -222,22 +241,226 @@ function BankFrame:ResizeFrame(currentRow, currentCol, columns)
     end
 end
 
--- Check if item passes search filter
+-- Update bank slots info text
+function BankFrame:UpdateBankSlotsInfo(bankData, isOtherChar)
+    local infoText = getglobal("Guda_BankFrame_Toolbar_BankSlotsInfo_Text")
+    if not infoText then return end
+
+    local totalSlots = 0
+    local usedSlots = 0
+
+    -- Count slots in bank bags
+    for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
+        local bag = bankData[bagID]
+
+        -- Get slot count for this bag
+        local numSlots
+        if isOtherChar and bag and bag.numSlots then
+            numSlots = bag.numSlots
+        else
+            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+        end
+
+        if numSlots and numSlots > 0 then
+            totalSlots = totalSlots + numSlots
+
+            -- Count used slots
+            if bag and bag.slots then
+                for slot = 1, numSlots do
+                    if bag.slots[slot] then
+                        usedSlots = usedSlots + 1
+                    end
+                end
+            end
+        end
+    end
+
+    -- Format: "24 / 80" (used / total)
+    infoText:SetText(string.format("%d / %d", usedSlots, totalSlots))
+    infoText:SetTextColor(0.7, 0.7, 0.7)
+end
+
+-- Update money display
+function BankFrame:UpdateMoney()
+    local moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+
+    if not moneyFrame then
+        addon:Debug("Bank MoneyFrame not found! Checking parent...")
+        addon:Debug("Guda_BankFrame exists: " .. tostring(getglobal("Guda_BankFrame") ~= nil))
+
+        -- Try to create it manually
+        self:CreateMoneyFrame()
+        moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+    end
+
+    if moneyFrame then
+        MoneyFrame_Update("Guda_BankFrame_MoneyFrame", GetMoney())
+        moneyFrame:Show()
+
+        -- Ensure tooltip overlay exists
+        self:EnsureMoneyTooltipOverlay()
+    else
+        addon:Debug("Still couldn't find or create Bank MoneyFrame!")
+    end
+end
+
+-- Create MoneyFrame if it doesn't exist
+function BankFrame:CreateMoneyFrame()
+    local moneyFrame = CreateFrame("Frame", "Guda_BankFrame_MoneyFrame", Guda_BankFrame, "SmallMoneyFrameTemplate")
+    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -15, 5)
+    moneyFrame:SetWidth(180)
+    moneyFrame:SetHeight(35)
+
+    -- Set up OnLoad handler
+    Guda_BankFrame_MoneyFrame_OnLoad(moneyFrame)
+
+    addon:Debug("Bank MoneyFrame created via CreateMoneyFrame")
+end
+
+-- Money frame OnLoad handler
+function Guda_BankFrame_MoneyFrame_OnLoad(self)
+    addon:Debug("Bank MoneyFrame OnLoad called for: " .. self:GetName())
+
+    -- Set tooltip handlers on money denomination buttons
+    local buttons = {"GoldButton", "SilverButton", "CopperButton"}
+
+    for _, buttonName in ipairs(buttons) do
+        local fullName = self:GetName() .. buttonName
+        local button = getglobal(fullName)
+        if button then
+            button:SetScript("OnEnter", function()
+                Guda_BankFrame_MoneyOnEnter(this:GetParent())
+            end)
+            button:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+        end
+    end
+
+    -- Also set handlers on parent frame
+    self:EnableMouse(true)
+    self:SetScript("OnEnter", function()
+        Guda_BankFrame_MoneyOnEnter(this)
+    end)
+    self:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+end
+
+-- Money tooltip handler
+function Guda_BankFrame_MoneyOnEnter(self)
+    if not self then return end
+
+    -- Anchor tooltip to TOPRIGHT
+    GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT", 0, 0)
+    GameTooltip:ClearLines()
+
+    -- Get all characters and total
+    local chars = addon.Modules.DB:GetAllCharacters(true)
+    local totalMoney = addon.Modules.DB:GetTotalMoney(true)
+
+    -- Header with faction/realm total - use colored money
+    GameTooltip:AddLine(
+        "Faction/realm-wide gold: " .. addon.Modules.Utils:FormatMoney(totalMoney, false, true),
+        1, 0.82, 0
+    )
+    GameTooltip:AddLine(" ")
+
+    -- List each character with class-colored names
+    for _, char in ipairs(chars) do
+        local classToken = char.classToken
+        local classColor = classToken and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[classToken]
+        local colorR, colorG, colorB = 0.7, 0.7, 0.7
+
+        if classColor then
+            colorR, colorG, colorB = classColor.r, classColor.g, classColor.b
+        end
+
+        -- Create colored name
+        local coloredName = addon.Modules.Utils:ColorText(char.name, colorR, colorG, colorB)
+
+        GameTooltip:AddLine(
+            coloredName .. ": " .. addon.Modules.Utils:FormatMoney(char.money or 0, false, true)
+        )
+    end
+
+    GameTooltip:Show()
+end
+
+-- Create transparent overlay for money tooltip
+function BankFrame:EnsureMoneyTooltipOverlay()
+    local overlayName = "Guda_BankFrame_MoneyTooltipOverlay"
+    local overlay = getglobal(overlayName)
+
+    if not overlay then
+        local moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+        if not moneyFrame then return end
+
+        -- Create transparent overlay frame
+        overlay = CreateFrame("Frame", overlayName, moneyFrame)
+        overlay:SetAllPoints(moneyFrame)
+        overlay:SetFrameLevel(moneyFrame:GetFrameLevel() + 1)
+        overlay:EnableMouse(true)
+
+        -- Set tooltip handlers on overlay
+        overlay:SetScript("OnEnter", function()
+            Guda_BankFrame_MoneyOnEnter(moneyFrame)
+        end)
+
+        overlay:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        addon:Debug("Bank money tooltip overlay created")
+    end
+
+    overlay:Show()
+end
+
+-- Check if search is currently active
+function BankFrame:IsSearchActive()
+    return searchText and searchText ~= "" and searchText ~= "Search bank..."
+end
+
+-- Check if item passes search filter (pfUI style)
 function BankFrame:PassesSearchFilter(itemData)
-    if searchText == "" or searchText == "Search..." then
+    -- If no search text, everything matches
+    if not self:IsSearchActive() then
         return true
     end
 
-    if not itemData or not itemData.name then
+    -- Empty slots don't match when searching (pfUI style - they get dimmed)
+    if not itemData then
         return false
     end
 
-    return string.find(string.lower(itemData.name), string.lower(searchText)) ~= nil
+    -- Get item name from itemData.name or parse from link
+    local itemName = itemData.name
+    if not itemName and itemData.link then
+        -- Parse name from item link: |cffffffff|Hitem:...|h[Item Name]|h|r
+        local _, _, name = string.find(itemData.link, "%[(.+)%]")
+        itemName = name
+    end
+
+    if not itemName then
+        return false
+    end
+
+    -- Case-insensitive search in item name
+    itemName = string.lower(itemName)
+    local search = string.lower(searchText)
+
+    -- Check if item name contains search text
+    return string.find(itemName, search, 1, true) ~= nil
 end
 
 -- Search changed handler
 function Guda_BankFrame_OnSearchChanged(self)
     local text = self:GetText()
+    -- Ignore placeholder text
+    if text == "Search bank..." then
+        text = ""
+    end
     if text ~= searchText then
         searchText = text
         BankFrame:Update()
@@ -246,8 +469,8 @@ end
 
 -- Sort button handler
 function Guda_BankFrame_Sort()
-    if currentViewChar then
-        addon:Print("Cannot sort another character's bank!")
+    if isReadOnlyMode or currentViewChar then
+        addon:Print("Cannot sort in read-only mode!")
         return
     end
 
@@ -264,19 +487,86 @@ function Guda_BankFrame_Sort()
     end)
 end
 
+-- Switch to Blizzard bank UI
+function Guda_BankFrame_SwitchToBlizzardUI()
+    -- Hide custom bank frame
+    local customBankFrame = getglobal("Guda_BankFrame")
+    if customBankFrame then
+        customBankFrame:Hide()
+    end
+
+    -- Restore Blizzard bank frame
+    local blizzardBankFrame = getglobal("BankFrame")
+    if blizzardBankFrame then
+        blizzardBankFrame:SetScale(1.0)
+        blizzardBankFrame:SetAlpha(1.0)
+        blizzardBankFrame:ClearAllPoints()
+        blizzardBankFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
+        blizzardBankFrame:Show()
+    end
+
+    addon:Print("Switched to Blizzard bank UI. Close and reopen bank to use custom UI again.")
+end
+
 -- Initialize
 function BankFrame:Initialize()
+    -- Hide Blizzard bank frame on load (pfUI style)
+    local blizzardBankFrame = getglobal("BankFrame")
+    if blizzardBankFrame then
+        blizzardBankFrame:SetScale(0.001)
+        blizzardBankFrame:SetPoint("TOPLEFT", 0, 0)
+        blizzardBankFrame:SetAlpha(0)
+    end
+
     -- Update when bank is opened
     addon.Modules.Events:OnBankOpen(function()
-        BankFrame:Update()
+        -- Delay showing custom bank to let TransmogUI finish processing
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        frame:SetScript("OnUpdate", function()
+            elapsed = elapsed + arg1
+            if elapsed >= 0.2 then
+                frame:SetScript("OnUpdate", nil)
+
+                -- Show current character's bank in interactive mode
+                currentViewChar = nil
+
+                -- Show and update custom bank frame
+                local customBankFrame = getglobal("Guda_BankFrame")
+                if customBankFrame then
+                    customBankFrame:Show()
+                end
+
+                addon.Modules.BankFrame:Update()
+            end
+        end)
+    end, "BankFrameUI")
+
+    -- Hide custom bank when bank is closed
+    addon.Modules.Events:OnBankClose(function()
+        local customBankFrame = getglobal("Guda_BankFrame")
+        if customBankFrame and customBankFrame:IsShown() and not currentViewChar then
+            -- Only auto-close if viewing current character's bank (not saved banks)
+            customBankFrame:Hide()
+        end
     end, "BankFrameUI")
 
     -- Update on bag changes while bank is open
     addon.Modules.Events:OnBagUpdate(function()
         if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-            BankFrame:Update()
+            addon.Modules.BankFrame:Update()
         end
     end, "BankFrameUI")
+
+    -- Register bank-specific update events (pfUI style)
+    local updateFrame = CreateFrame("Frame")
+    updateFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+    updateFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
+    updateFrame:SetScript("OnEvent", function()
+        if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
+            addon.Modules.BankFrame:Update()
+        end
+    end)
 
     addon:Debug("Bank frame initialized")
 end

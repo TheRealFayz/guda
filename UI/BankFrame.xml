@@ -1,4 +1,5 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
 
     <!-- Bank Frame -->
     <Frame name="Guda_BankFrame" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent">
@@ -106,6 +107,53 @@
                 </Scripts>
             </Button>
 
+            <!-- Blizzard UI Button (header left) -->
+            <Button name="$parent_BlizzardUIButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="18" y="-15"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\Icons\\INV_Misc_Note_02")
+                            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BankFrame_SwitchToBlizzardUI()
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("Use Blizzard Bank UI")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
             <!-- Search Bar (below title) -->
             <Frame name="$parent_SearchBar">
                 <Size>
@@ -164,6 +212,83 @@
                     </EditBox>
                 </Frames>
             </Frame>
+
+            <!-- Toolbar Container (for bank slots info) -->
+            <Frame name="$parent_Toolbar" enableMouse="true">
+                <Size>
+                    <AbsDimension x="200" y="30"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT">
+                        <Offset>
+                            <AbsDimension x="10" y="5"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnMouseDown>
+                        -- Clear search focus when clicking toolbar
+                        local searchBox = getglobal("Guda_BankFrame_SearchBar_SearchBox")
+                        if searchBox then
+                            searchBox:ClearFocus()
+                        end
+                    </OnMouseDown>
+                </Scripts>
+
+                <Frames>
+                    <!-- Bank Slots Info Text -->
+                    <Frame name="$parent_BankSlotsInfo">
+                        <Size>
+                            <AbsDimension x="100" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT">
+                                <Offset>
+                                    <AbsDimension x="13" y="3"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Layers>
+                            <Layer level="OVERLAY">
+                                <FontString name="$parent_Text" inherits="GameFontNormal">
+                                    <Anchors>
+                                        <Anchor point="LEFT">
+                                            <Offset>
+                                                <AbsDimension x="0" y="0"/>
+                                            </Offset>
+                                        </Anchor>
+                                    </Anchors>
+                                </FontString>
+                            </Layer>
+                        </Layers>
+                        <Scripts>
+                            <OnLoad>
+                                local text = getglobal(this:GetName().."_Text")
+                                if text then
+                                    text:SetText("0 / 0")
+                                    text:SetTextColor(0.8, 0.8, 0.8)
+                                end
+                            </OnLoad>
+                        </Scripts>
+                    </Frame>
+                </Frames>
+            </Frame>
+
+            <!-- Money Display Frame (bottom right) -->
+            <MoneyFrame name="$parent_MoneyFrame" inherits="SmallMoneyFrameTemplate">
+                <Size x="180" y="35"/>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="Guda_BankFrame" relativePoint="BOTTOMRIGHT">
+                        <Offset x="-15" y="5"/>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        -- Set tooltip handlers on money button children
+                        Guda_BankFrame_MoneyFrame_OnLoad(this)
+                    </OnLoad>
+                </Scripts>
+            </MoneyFrame>
 
             <!-- Container for item buttons -->
             <Frame name="$parent_ItemContainer" enableMouse="true">
