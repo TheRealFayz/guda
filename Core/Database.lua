@@ -33,9 +33,11 @@ function DB:Initialize()
                 showBankInBags = true,
                 showOtherChars = true,
                 bagColumns = 10,
-                bankColumns = 15,
+                bankBagColumns = 8,
+                bankColumns = 10,
                 sortMethod = "quality", -- quality, name, type
-                iconSize = addon.Constants and addon.Constants.BUTTON_SIZE or 37,
+                iconSize = 40,
+                iconSpacing = 0,
                 iconFontSize = 12,
             },
         }
@@ -45,11 +47,17 @@ function DB:Initialize()
     if not Guda_CharDB.settings.bagColumns then
         Guda_CharDB.settings.bagColumns = 10
     end
+    if not Guda_CharDB.settings.bankBagColumns then
+        Guda_CharDB.settings.bankBagColumns = 8
+    end
     if not Guda_CharDB.settings.bankColumns then
-        Guda_CharDB.settings.bankColumns = 15
+        Guda_CharDB.settings.bankColumns = 10
     end
     if not Guda_CharDB.settings.iconSize then
-        Guda_CharDB.settings.iconSize = addon.Constants and addon.Constants.BUTTON_SIZE or 37
+        Guda_CharDB.settings.iconSize = 40
+    end
+    if not Guda_CharDB.settings.iconSpacing then
+        Guda_CharDB.settings.iconSpacing = 0
     end
     if not Guda_CharDB.settings.iconFontSize then
         Guda_CharDB.settings.iconFontSize = 12

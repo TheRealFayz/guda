@@ -30,10 +30,10 @@ end
 function Guda_SettingsPopup_OnShow(self)
     -- Load current settings
     local bagColumns = Guda.Modules.DB:GetSetting("bagColumns") or 10
-    local bankColumns = Guda.Modules.DB:GetSetting("bankColumns") or 15
-    local iconSize = Guda.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
+    local bankColumns = Guda.Modules.DB:GetSetting("bankColumns") or 10
+    local iconSize = Guda.Modules.DB:GetSetting("iconSize") or 40
     local iconFontSize = Guda.Modules.DB:GetSetting("iconFontSize") or 12
-    local iconSpacing = Guda.Modules.DB:GetSetting("iconSpacing") or 4
+    local iconSpacing = Guda.Modules.DB:GetSetting("iconSpacing") or 0
     local lockBags = Guda.Modules.DB:GetSetting("lockBags")
     if lockBags == nil then
         lockBags = false
@@ -139,7 +139,7 @@ function Guda_SettingsPopup_BankColumnsSlider_OnLoad(self)
     self:SetMinMaxValues(5, 20)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("bankColumns") or 15
+    local currentValue = Guda.Modules.DB:GetSetting("bankColumns") or 10
     self:SetValue(currentValue)
 end
 
@@ -162,7 +162,7 @@ end
 
 -- Icon Size Slider OnLoad
 function Guda_SettingsPopup_IconSizeSlider_OnLoad(self)
-    getglobal(self:GetName().."Low"):SetText("24px")
+    getglobal(self:GetName().."Low"):SetText("30px")
     getglobal(self:GetName().."High"):SetText("64px")
 
     local text = getglobal(self:GetName().."Text")
@@ -174,7 +174,7 @@ function Guda_SettingsPopup_IconSizeSlider_OnLoad(self)
         text:SetFont(font, 12, flags)
     end
 
-    self:SetMinMaxValues(24, 64)
+    self:SetMinMaxValues(30, 64)
     self:SetValueStep(1)
 
     local currentValue = Guda.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
@@ -257,7 +257,7 @@ function Guda_SettingsPopup_IconSpacingSlider_OnLoad(self)
     self:SetMinMaxValues(-5, 10)
     self:SetValueStep(1)
 
-    local currentValue = Guda.Modules.DB:GetSetting("iconSpacing") or 4
+    local currentValue = Guda.Modules.DB:GetSetting("iconSpacing") or 0
     self:SetValue(currentValue)
 end
 

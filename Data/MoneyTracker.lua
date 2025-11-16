@@ -31,12 +31,12 @@ end
 
 -- Initialize money tracker
 function MoneyTracker:Initialize()
-    -- Track money changes
+    -- Track money changes and save immediately
     addon.Modules.Events:OnMoneyChanged(function()
         MoneyTracker:Update()
     end, "MoneyTracker")
 
-    -- Initial update on login
+    -- Initial update and save on login
     addon.Modules.Events:OnPlayerLogin(function()
         local frame = CreateFrame("Frame")
         local elapsed = 0
@@ -45,12 +45,8 @@ function MoneyTracker:Initialize()
             if elapsed >= 1 then
                 frame:SetScript("OnUpdate", nil)
                 MoneyTracker:Update()
+                addon:Debug("Initial money saved")
             end
         end)
-    end, "MoneyTracker")
-
-    -- Save on logout
-    addon.Modules.Events:OnPlayerLogout(function()
-        MoneyTracker:Update()
     end, "MoneyTracker")
 end

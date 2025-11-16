@@ -61,7 +61,7 @@ end
 
 -- Initialize bank scanner
 function BankScanner:Initialize()
-    -- Bank opened
+    -- Bank opened - save bank data
     addon.Modules.Events:OnBankOpen(function()
         bankOpen = true
         addon:Debug("Bank opened")
@@ -82,13 +82,6 @@ function BankScanner:Initialize()
     addon.Modules.Events:OnBankClose(function()
         bankOpen = false
         addon:Debug("Bank closed")
-    end, "BankScanner")
-
-    -- Update on bag changes while bank is open
-    addon.Modules.Events:OnBagUpdate(function()
-        if bankOpen then
-            BankScanner:SaveToDatabase()
-        end
     end, "BankScanner")
 end
 

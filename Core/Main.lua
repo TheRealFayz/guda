@@ -6,24 +6,9 @@ local addon = Guda
 local Main = {}
 addon.Modules.Main = Main
 
--- Auto-save timer
-local autoSaveFrame = CreateFrame("Frame")
-local timeSinceLastSave = 0
-local SAVE_INTERVAL = addon.Constants.SAVE_INTERVAL
-
--- Auto-save update
-autoSaveFrame:SetScript("OnUpdate", function()
-    timeSinceLastSave = timeSinceLastSave + arg1
-
-    if timeSinceLastSave >= SAVE_INTERVAL then
-        Main:AutoSave()
-        timeSinceLastSave = 0
-    end
-end)
-
--- Perform auto-save
-function Main:AutoSave()
-    addon:Debug("Auto-saving data...")
+-- Manual save function (for slash command)
+function Main:SaveData()
+    addon:Debug("Saving data...")
 
     -- Save bags
     addon.Modules.BagScanner:SaveToDatabase()
@@ -36,7 +21,7 @@ function Main:AutoSave()
     -- Save money
     addon.Modules.MoneyTracker:Update()
 
-    addon:Debug("Auto-save complete")
+    addon:Debug("Save complete")
 end
 
 -- Initialize addon
@@ -58,28 +43,11 @@ function Main:Initialize()
         addon.Modules.BankFrame:Initialize()
         addon.Modules.SettingsPopup:Initialize()
 
-        -- Save on logout
-        addon.Modules.Events:OnPlayerLogout(function()
-            addon:Print("Saving data on logout...")
-            Main:AutoSave()
-        end, "Main")
-
         -- Setup slash commands
         Main:SetupSlashCommands()
 
         addon:Debug("Initialization complete")
-
-        -- Delay initial save to ensure everything is loaded
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        frame:SetScript("OnUpdate", function()
-            elapsed = elapsed + arg1
-            if elapsed >= 5 then
-                frame:SetScript("OnUpdate", nil)
-                Main:AutoSave()
-                addon:Print("Ready! Type /guda to open bags")
-            end
-        end)
+        addon:Print("Ready! Type /guda to open bags")
     end, "Main")
 end
 
@@ -114,7 +82,7 @@ function Main:SetupSlashCommands()
 
         elseif msg == "save" then
             -- Manual save
-            Main:AutoSave()
+            Main:SaveData()
             addon:Print("Data saved manually")
 
         elseif msg == "debug" then

@@ -44,6 +44,10 @@ end
 
 -- OnShow
 function Guda_BagFrame_OnShow(self)
+    -- Save bag data when opening bags
+    addon.Modules.BagScanner:SaveToDatabase()
+    addon.Modules.MoneyTracker:Update()
+
     -- Restore saved position if it exists (only if saved as BOTTOMRIGHT)
     if addon and addon.Modules and addon.Modules.DB then
         local pos = addon.Modules.DB:GetSetting("bagFramePosition")
@@ -340,7 +344,7 @@ end
 
 -- Money tooltip handler
 function Guda_BagFrame_MoneyOnEnter(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:ClearLines()
 
     -- Get all characters and total

@@ -59,8 +59,10 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
     -- Resize empty slot background to match icon size (slightly larger to ensure coverage)
     if emptySlotBg then
         emptySlotBg:ClearAllPoints()
-        emptySlotBg:SetPoint("TOPLEFT", self, "TOPLEFT", -2, 2)
-        emptySlotBg:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", 2, -2)
+        -- Use smaller padding for small icons
+        local bgPadding = iconSize < 44 and 1 or 2
+        emptySlotBg:SetPoint("TOPLEFT", self, "TOPLEFT", -bgPadding, bgPadding)
+        emptySlotBg:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", bgPadding, -bgPadding)
         -- Crop texture edges slightly to remove any built-in padding
         emptySlotBg:SetTexCoord(0.1, 0.9, 0.1, 0.9)
     end
@@ -114,6 +116,16 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         local font, _, flags = countText:GetFont()
         local fontSize = Guda.Modules.DB:GetSetting("iconFontSize") or 12
         countText:SetFont(font, fontSize, flags)
+
+        -- Adjust count text position based on icon size for better alignment
+        countText:ClearAllPoints()
+        if iconSize < 44 then
+            -- Smaller offset for small icons
+            countText:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -3, 3)
+        else
+            -- Standard offset for larger icons
+            countText:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -8, 8)
+        end
     end
 
     if itemData then
@@ -204,8 +216,17 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
     if iconTexture then
         if self.hasItem then
-            -- Make icon 3px smaller than slot for nice inset effect
-            local iconDisplaySize = iconSize - 15
+            -- Scale icon proportionally based on button size
+            -- For icons < 44: use smaller inset (4px) for better fit
+            -- For icons >= 44: use larger inset (15px) for classic look
+            local iconInset
+            if iconSize < 44 then
+                iconInset = 10  -- Small inset for small icons
+            else
+                iconInset = 15 -- Larger inset for larger icons
+            end
+
+            local iconDisplaySize = iconSize - iconInset
             iconTexture:ClearAllPoints()
             iconTexture:SetPoint("CENTER", self, "CENTER", 0, 0)
             iconTexture:SetWidth(iconDisplaySize)

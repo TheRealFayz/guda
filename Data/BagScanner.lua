@@ -78,24 +78,7 @@ function BagScanner:SaveToDatabase()
     addon.Modules.DB:SaveBags(bagData)
 end
 
--- Auto-scan on bag updates
+-- Initialize (no auto-save, only save when bags are opened)
 function BagScanner:Initialize()
-    addon.Modules.Events:OnBagUpdate(function()
-        BagScanner:SaveToDatabase()
-    end, "BagScanner")
-
-    -- Initial scan on login
-    addon.Modules.Events:OnPlayerLogin(function()
-        -- Delay to ensure bags are loaded
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        frame:SetScript("OnUpdate", function()
-            elapsed = elapsed + arg1
-            if elapsed >= 1 then
-                frame:SetScript("OnUpdate", nil)
-                BagScanner:SaveToDatabase()
-                addon:Debug("Initial bag scan complete")
-            end
-        end)
-    end, "BagScanner")
+    addon:Debug("Bag scanner initialized")
 end
