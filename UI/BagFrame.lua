@@ -352,18 +352,15 @@ function Guda_BagFrame_MoneyOnEnter(self)
     local totalMoney = addon.Modules.DB:GetTotalMoney(true)
     local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
 
-    -- Header with faction/realm total
-    GameTooltip:AddLine("Faction/realm-wide gold:", 1, 0.82, 0, 1)
-    GameTooltip:AddLine(addon.Modules.Utils:FormatMoney(totalMoney), 1, 1, 1, 1)
-    GameTooltip:AddLine(" ")
-
-    -- List each character
+    -- List each character with class-colored names
     for _, char in ipairs(chars) do
+        -- Get class color from WoW's built-in table using English class token
+        local classToken = char.classToken
+        local classColor = classToken and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[classToken]
         local colorR, colorG, colorB = 0.7, 0.7, 0.7
 
-        -- Highlight current character
-        if char.fullName == currentPlayerName then
-            colorR, colorG, colorB = 0, 1, 0.6
+        if classColor then
+            colorR, colorG, colorB = classColor.r, classColor.g, classColor.b
         end
 
         GameTooltip:AddDoubleLine(
@@ -373,6 +370,15 @@ function Guda_BagFrame_MoneyOnEnter(self)
             1, 1, 1
         )
     end
+
+    -- Add separator and total at the bottom
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddDoubleLine(
+        "Total:",
+        addon.Modules.Utils:FormatMoney(totalMoney),
+        1, 0.82, 0,
+        1, 1, 1
+    )
 
     GameTooltip:Show()
 end

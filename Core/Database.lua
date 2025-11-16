@@ -65,17 +65,27 @@ function DB:Initialize()
 
     -- Initialize this character's data
     if not Guda_DB.characters[fullName] then
+        local localizedClass, englishClass = UnitClass("player")
         Guda_DB.characters[fullName] = {
             name = playerName,
             realm = playerRealm,
             faction = playerFaction,
-            class = UnitClass("player"),
+            class = localizedClass,
+            classToken = englishClass, -- English uppercase token for RAID_CLASS_COLORS
             level = UnitLevel("player"),
             money = 0,
             bags = {},
             bank = {},
             lastUpdate = time(),
         }
+    else
+        -- Migration: Add classToken to existing characters
+        local char = Guda_DB.characters[fullName]
+        if not char.classToken then
+            local localizedClass, englishClass = UnitClass("player")
+            char.classToken = englishClass
+            addon:Debug("Added classToken to existing character")
+        end
     end
 
     addon:Debug("Database initialized for %s", fullName)
@@ -132,6 +142,7 @@ function DB:GetAllCharacters(sameFactionOnly)
                 name = data.name,
                 realm = data.realm,
                 class = data.class,
+                classToken = data.classToken, -- English uppercase token for colors
                 level = data.level,
                 faction = data.faction,
                 money = data.money,
