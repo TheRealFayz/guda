@@ -60,7 +60,197 @@
                 </Scripts>
             </Button>
 
-            <!-- Toolbar Container (moved to footer) -->
+            <!-- Settings Button (header right, next to close) -->
+            <Button name="$parent_SettingsButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPRIGHT" relativePoint="TOPLEFT" relativeTo="$parent_CloseButton">
+                        <Offset>
+                            <AbsDimension x="0" y="-5"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\Icons\\Trade_Engineering")
+                            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_OpenSettings()
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("Settings")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
+            <!-- Sort Button (header right, next to settings) -->
+            <Button name="$parent_SortButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$parent_SettingsButton">
+                        <Offset>
+                            <AbsDimension x="-2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+                            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BagFrame_Sort()
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("Sort Bags")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
+            <!-- Characters Button (header left) -->
+            <Button name="$parent_CharsButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="18" y="-15"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            -- Use 3D portrait of the player
+                            SetPortraitTexture(icon, "player")
+                            -- Reset TexCoord for portrait (portraits don't need cropping)
+                            icon:SetTexCoord(0, 1, 0, 1)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BagFrame_ToggleCharacterDropdown(this)
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("View Other Characters")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
+            <!-- Bank Button (header left, next to characters) -->
+            <Button name="$parent_BankButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_CharsButton">
+                        <Offset>
+                            <AbsDimension x="2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_09")
+                            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BankFrame:Toggle()
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("View Bank")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
+            <!-- Toolbar Container (for money tooltip, kept for compatibility) -->
             <Frame name="$parent_Toolbar" enableMouse="true">
                 <Size>
                     <AbsDimension x="200" y="30"/>
@@ -83,193 +273,7 @@
                 </Scripts>
 
                 <Frames>
-                    <!-- Sort Button (icon-based) -->
-                    <Button name="$parent_SortButton">
-                        <Size>
-                            <AbsDimension x="24" y="24"/>
-                        </Size>
-                        <Anchors>
-                            <Anchor point="LEFT">
-                                <Offset>
-                                    <AbsDimension x="0" y="0"/>
-                                </Offset>
-                            </Anchor>
-                        </Anchors>
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <Texture name="$parent_Icon">
-                                    <Size>
-                                        <AbsDimension x="20" y="20"/>
-                                    </Size>
-                                    <Anchors>
-                                        <Anchor point="CENTER"/>
-                                    </Anchors>
-                                    <Color r="0.8" g="0.8" b="0.8"/>
-                                </Texture>
-                            </Layer>
-                        </Layers>
-                        <Scripts>
-                            <OnLoad>
-                                local icon = getglobal(this:GetName().."_Icon")
-                                if icon then
-                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Sorting.png")
-                                    icon:SetTexCoord(0, 1, 0, 1)
-                                end
-                            </OnLoad>
-                            <OnClick>
-                                Guda_BagFrame_Sort()
-                            </OnClick>
-                            <OnEnter>
-                                GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                                GameTooltip:SetText("Sort Bags")
-                                GameTooltip:Show()
-                            </OnEnter>
-                            <OnLeave>
-                                GameTooltip:Hide()
-                            </OnLeave>
-                        </Scripts>
-                    </Button>
-
-                    <!-- Characters Button (icon-based) -->
-                    <Button name="$parent_CharsButton">
-                        <Size>
-                            <AbsDimension x="24" y="24"/>
-                        </Size>
-                        <Anchors>
-                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_SortButton">
-                                <Offset>
-                                    <AbsDimension x="4" y="0"/>
-                                </Offset>
-                            </Anchor>
-                        </Anchors>
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <Texture name="$parent_Icon">
-                                    <Size>
-                                        <AbsDimension x="20" y="20"/>
-                                    </Size>
-                                    <Anchors>
-                                        <Anchor point="CENTER"/>
-                                    </Anchors>
-                                    <Color r="0.8" g="0.8" b="0.8"/>
-                                </Texture>
-                            </Layer>
-                        </Layers>
-                        <Scripts>
-                            <OnLoad>
-                                local icon = getglobal(this:GetName().."_Icon")
-                                if icon then
-                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\All_Characters.png")
-                                    icon:SetTexCoord(0, 1, 0, 1)
-                                end
-                            </OnLoad>
-                            <OnClick>
-                                Guda_BagFrame_ToggleCharacterDropdown(this)
-                            </OnClick>
-                            <OnEnter>
-                                GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                                GameTooltip:SetText("View Other Characters")
-                                GameTooltip:Show()
-                            </OnEnter>
-                            <OnLeave>
-                                GameTooltip:Hide()
-                            </OnLeave>
-                        </Scripts>
-                    </Button>
-
-                    <!-- Bank Button (icon-based) -->
-                    <Button name="$parent_BankButton">
-                        <Size>
-                            <AbsDimension x="24" y="24"/>
-                        </Size>
-                        <Anchors>
-                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_CharsButton">
-                                <Offset>
-                                    <AbsDimension x="4" y="0"/>
-                                </Offset>
-                            </Anchor>
-                        </Anchors>
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <Texture name="$parent_Icon">
-                                    <Size>
-                                        <AbsDimension x="20" y="20"/>
-                                    </Size>
-                                    <Anchors>
-                                        <Anchor point="CENTER"/>
-                                    </Anchors>
-                                    <Color r="0.8" g="0.8" b="0.8"/>
-                                </Texture>
-                            </Layer>
-                        </Layers>
-                        <Scripts>
-                            <OnLoad>
-                                local icon = getglobal(this:GetName().."_Icon")
-                                if icon then
-                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Chest.png")
-                                    icon:SetTexCoord(0, 1, 0, 1)
-                                end
-                            </OnLoad>
-                            <OnClick>
-                                Guda_BankFrame:Toggle()
-                            </OnClick>
-                            <OnEnter>
-                                GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                                GameTooltip:SetText("View Bank")
-                                GameTooltip:Show()
-                            </OnEnter>
-                            <OnLeave>
-                                GameTooltip:Hide()
-                            </OnLeave>
-                        </Scripts>
-                    </Button>
-
-                    <!-- Settings Button (icon-based) -->
-                    <Button name="$parent_SettingsButton">
-                        <Size>
-                            <AbsDimension x="24" y="24"/>
-                        </Size>
-                        <Anchors>
-                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankButton">
-                                <Offset>
-                                    <AbsDimension x="4" y="0"/>
-                                </Offset>
-                            </Anchor>
-                        </Anchors>
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <Texture name="$parent_Icon">
-                                    <Size>
-                                        <AbsDimension x="20" y="20"/>
-                                    </Size>
-                                    <Anchors>
-                                        <Anchor point="CENTER"/>
-                                    </Anchors>
-                                    <Color r="0.8" g="0.8" b="0.8"/>
-                                </Texture>
-                            </Layer>
-                        </Layers>
-                        <Scripts>
-                            <OnLoad>
-                                local icon = getglobal(this:GetName().."_Icon")
-                                if icon then
-                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Cog.png")
-                                    icon:SetTexCoord(0, 1, 0, 1)
-                                end
-                            </OnLoad>
-                            <OnClick>
-                                Guda_OpenSettings()
-                            </OnClick>
-                            <OnEnter>
-                                GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                                GameTooltip:SetText("Settings")
-                                GameTooltip:Show()
-                            </OnEnter>
-                            <OnLeave>
-                                GameTooltip:Hide()
-                            </OnLeave>
-                        </Scripts>
-                    </Button>
+                    <!-- All buttons moved to header -->
                 </Frames>
             </Frame>
 

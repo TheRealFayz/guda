@@ -13,6 +13,25 @@ local itemButtons = {}
 -- Global click catcher for clearing search focus
 local clickCatcher = nil
 
+-- Get player race icon path (using racial ability icons)
+function Guda_GetPlayerRaceIcon()
+    local _, race = UnitRace("player")
+
+    -- Use racial ability icons that exist in vanilla
+    local raceIcons = {
+        Human = "Interface\\Icons\\Spell_Magic_PolymorphPig",
+        Dwarf = "Interface\\Icons\\Spell_Shadow_UnholyFrenzy",
+        NightElf = "Interface\\Icons\\Spell_Nature_Invisibility",
+        Gnome = "Interface\\Icons\\Ability_Repair",
+        Orc = "Interface\\Icons\\Ability_Racial_BloodRage",
+        Undead = "Interface\\Icons\\Spell_Shadow_RaiseDead",
+        Tauren = "Interface\\Icons\\Ability_Thunderclap",
+        Troll = "Interface\\Icons\\Ability_Racial_Avatar",
+    }
+
+    return raceIcons[race] or "Interface\\Icons\\INV_Misc_GroupNeedMore"
+end
+
 -- OnLoad
 function Guda_BagFrame_OnLoad(self)
     -- Set up search box placeholder
