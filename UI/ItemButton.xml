@@ -1,0 +1,64 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
+
+    <!-- Item Button Template -->
+    <Button name="Guda_ItemButtonTemplate" virtual="true" inherits="ItemButtonTemplate">
+        <Size>
+            <AbsDimension x="37" y="37"/>
+        </Size>
+
+        <Layers>
+            <!-- Empty slot background texture (classic bag pattern) -->
+            <Layer level="BACKGROUND">
+                <Texture name="$parent_EmptySlotBg" file="Interface\Buttons\UI-EmptySlot" hidden="false">
+                    <Anchors>
+                        <Anchor point="TOPLEFT"/>
+                        <Anchor point="BOTTOMRIGHT"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+
+            <!-- Quality border -->
+            <Layer level="OVERLAY">
+                <Texture name="$parent_QualityBorder" hidden="true">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="-1" y="1"/>
+                        <Anchor point="BOTTOMRIGHT" x="1" y="-1"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+
+            <!-- Item count -->
+            <Layer level="OVERLAY">
+                <FontString name="$parent_Count" inherits="NumberFontNormal" justifyH="RIGHT">
+                    <Anchors>
+                        <Anchor point="BOTTOMRIGHT" x="-2" y="2"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+
+        <Scripts>
+            <OnLoad>
+                Guda_ItemButton_OnLoad(this)
+                this:RegisterForDrag("LeftButton")
+                this:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            </OnLoad>
+            <OnEnter>
+                Guda_ItemButton_OnEnter(this)
+            </OnEnter>
+            <OnLeave>
+                Guda_ItemButton_OnLeave(this)
+            </OnLeave>
+            <OnClick>
+                Guda_ItemButton_OnClick(this, arg1)
+            </OnClick>
+            <OnDragStart>
+                Guda_ItemButton_OnDragStart(this, arg1)
+            </OnDragStart>
+            <OnReceiveDrag>
+                Guda_ItemButton_OnReceiveDrag(this)
+            </OnReceiveDrag>
+        </Scripts>
+    </Button>
+
+</Ui>

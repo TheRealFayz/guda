@@ -1,0 +1,181 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
+
+    <!-- Settings Popup Frame -->
+    <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
+        <Size>
+            <AbsDimension x="320" y="380"/>
+        </Size>
+
+        <Anchors>
+            <Anchor point="CENTER" relativePoint="CENTER" relativeTo="UIParent">
+                <Offset>
+                    <AbsDimension x="0" y="0"/>
+                </Offset>
+            </Anchor>
+        </Anchors>
+
+        <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+            <BackgroundInsets>
+                <AbsInset left="11" right="12" top="12" bottom="11"/>
+            </BackgroundInsets>
+            <TileSize>
+                <AbsValue val="16"/>
+            </TileSize>
+            <EdgeSize>
+                <AbsValue val="32"/>
+            </EdgeSize>
+            <Color r="0" g="0" b="0" a="0.9"/>
+        </Backdrop>
+
+        <Layers>
+            <!-- Title -->
+            <Layer level="ARTWORK">
+                <FontString name="$parent_Title" inherits="GameFontNormalLarge">
+                    <Anchors>
+                        <Anchor point="TOP" x="0" y="-25"/>
+                    </Anchors>
+                    <Color r="1" g="0.82" b="0"/>
+                </FontString>
+            </Layer>
+        </Layers>
+
+        <Frames>
+            <!-- Close Button -->
+            <Button name="$parent_CloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="TOPRIGHT" x="-5" y="-50"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Guda_SettingsPopup:Hide()
+                    </OnClick>
+                </Scripts>
+            </Button>
+
+            <!-- Bag Columns Slider -->
+            <Slider name="$parent_BagColumnsSlider" inherits="OptionsSliderTemplate">
+                <Size>
+                    <AbsDimension x="270" y="17"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP">
+                        <Offset>
+                            <AbsDimension x="0" y="-90"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_BagColumnsSlider_OnLoad(this)
+                    </OnLoad>
+                    <OnValueChanged>
+                        Guda_SettingsPopup_BagColumnsSlider_OnValueChanged(this)
+                    </OnValueChanged>
+                </Scripts>
+            </Slider>
+
+            <!-- Bank Columns Slider -->
+            <Slider name="$parent_BankColumnsSlider" inherits="OptionsSliderTemplate">
+                <Size>
+                    <AbsDimension x="270" y="17"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_BagColumnsSlider">
+                        <Offset>
+                            <AbsDimension x="0" y="-40"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_BankColumnsSlider_OnLoad(this)
+                    </OnLoad>
+                    <OnValueChanged>
+                        Guda_SettingsPopup_BankColumnsSlider_OnValueChanged(this)
+                    </OnValueChanged>
+                </Scripts>
+            </Slider>
+
+            <!-- Icon Size Slider -->
+            <Slider name="$parent_IconSizeSlider" inherits="OptionsSliderTemplate">
+                <Size>
+                    <AbsDimension x="270" y="17"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_BankColumnsSlider">
+                        <Offset>
+                            <AbsDimension x="0" y="-40"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_IconSizeSlider_OnLoad(this)
+                    </OnLoad>
+                    <OnValueChanged>
+                        Guda_SettingsPopup_IconSizeSlider_OnValueChanged(this)
+                    </OnValueChanged>
+                </Scripts>
+            </Slider>
+
+            <!-- Icon Font Size Slider -->
+            <Slider name="$parent_IconFontSizeSlider" inherits="OptionsSliderTemplate">
+                <Size>
+                    <AbsDimension x="270" y="17"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconSizeSlider">
+                        <Offset>
+                            <AbsDimension x="0" y="-40"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_IconFontSizeSlider_OnLoad(this)
+                    </OnLoad>
+                    <OnValueChanged>
+                        Guda_SettingsPopup_IconFontSizeSlider_OnValueChanged(this)
+                    </OnValueChanged>
+                </Scripts>
+            </Slider>
+
+            <!-- Lock Bags Checkbox -->
+            <CheckButton name="$parent_LockBagsCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconFontSizeSlider">
+                        <Offset>
+                            <AbsDimension x="-120" y="-30"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_LockBagsCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_LockBagsCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+        </Frames>
+
+        <Scripts>
+            <OnLoad>
+                Guda_SettingsPopup_OnLoad(this)
+            </OnLoad>
+            <OnShow>
+                Guda_SettingsPopup_OnShow(this)
+            </OnShow>
+            <OnMouseDown>
+                if (arg1 == "LeftButton") then
+                    this:StartMoving()
+                end
+            </OnMouseDown>
+            <OnMouseUp>
+                this:StopMovingOrSizing()
+            </OnMouseUp>
+        </Scripts>
+    </Frame>
+
+</Ui>

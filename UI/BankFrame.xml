@@ -1,0 +1,142 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/">
+
+    <!-- Bank Frame -->
+    <Frame name="Guda_BankFrame" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent">
+        <Size>
+            <AbsDimension x="400" y="500"/>
+        </Size>
+
+        <Anchors>
+            <Anchor point="LEFT" relativePoint="LEFT" relativeTo="UIParent">
+                <Offset>
+                    <AbsDimension x="50" y="0"/>
+                </Offset>
+            </Anchor>
+        </Anchors>
+
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+            <BackgroundInsets>
+                <AbsInset left="11" right="12" top="12" bottom="11"/>
+            </BackgroundInsets>
+            <TileSize>
+                <AbsValue val="32"/>
+            </TileSize>
+            <EdgeSize>
+                <AbsValue val="32"/>
+            </EdgeSize>
+        </Backdrop>
+
+        <Layers>
+            <!-- Title -->
+            <Layer level="ARTWORK">
+                <FontString name="$parent_Title" inherits="GameFontNormalLarge">
+                    <Anchors>
+                        <Anchor point="TOP" x="0" y="-15"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+
+        <Frames>
+            <!-- Close Button -->
+            <Button name="$parent_CloseButton" inherits="UIPanelCloseButton">
+                <Anchors>
+                    <Anchor point="TOPRIGHT" x="-5" y="-5"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Guda_BankFrame:Hide()
+                    </OnClick>
+                </Scripts>
+            </Button>
+
+            <!-- Settings Button -->
+            <Button name="$parent_SettingsButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPRIGHT" relativePoint="TOPLEFT" relativeTo="$parent_CloseButton" x="-5" y="0"/>
+                </Anchors>
+                <NormalTexture file="Interface\Icons\Trade_Engineering"/>
+                <Scripts>
+                    <OnClick>
+                        Guda_OpenSettings()
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                        GameTooltip:SetText("Settings")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
+            <!-- Search Box -->
+            <EditBox name="$parent_SearchBox" autoFocus="false" inherits="InputBoxTemplate">
+                <Size>
+                    <AbsDimension x="200" y="20"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" x="0" y="-45"/>
+                </Anchors>
+                <Scripts>
+                    <OnTextChanged>
+                        Guda_BankFrame_OnSearchChanged(this)
+                    </OnTextChanged>
+                    <OnEscapePressed>
+                        this:ClearFocus()
+                    </OnEscapePressed>
+                </Scripts>
+            </EditBox>
+
+            <!-- Sort Button -->
+            <Button name="$parent_SortButton" inherits="UIPanelButtonTemplate" text="Sort Bank">
+                <Size>
+                    <AbsDimension x="100" y="22"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="BOTTOM" x="0" y="10"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+                        Guda_BankFrame_Sort()
+                    </OnClick>
+                </Scripts>
+            </Button>
+
+            <!-- Container for item buttons -->
+            <Frame name="$parent_ItemContainer">
+                <Size>
+                    <AbsDimension x="370" y="420"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" x="0" y="-75"/>
+                </Anchors>
+            </Frame>
+        </Frames>
+
+        <Scripts>
+            <OnLoad>
+                Guda_BankFrame_OnLoad(this)
+            </OnLoad>
+            <OnShow>
+                Guda_BankFrame_OnShow(this)
+            </OnShow>
+            <OnHide>
+                Guda_BankFrame_OnHide(this)
+            </OnHide>
+            <OnMouseDown>
+                if (arg1 == "LeftButton") then
+                    this:StartMoving()
+                end
+            </OnMouseDown>
+            <OnMouseUp>
+                this:StopMovingOrSizing()
+            </OnMouseUp>
+        </Scripts>
+    </Frame>
+
+</Ui>

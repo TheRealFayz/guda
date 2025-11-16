@@ -1,0 +1,56 @@
+-- Guda Money Tracker
+-- Tracks player money and saves to database
+
+local addon = Guda
+
+local MoneyTracker = {}
+addon.Modules.MoneyTracker = MoneyTracker
+
+local lastMoney = 0
+
+-- Update money in database
+function MoneyTracker:Update()
+    local currentMoney = GetMoney()
+
+    if currentMoney ~= lastMoney then
+        addon.Modules.DB:SaveMoney(currentMoney)
+        lastMoney = currentMoney
+        addon:Debug("Money updated: %s", addon.Modules.Utils:FormatMoney(currentMoney))
+    end
+end
+
+-- Get current money
+function MoneyTracker:GetCurrentMoney()
+    return GetMoney()
+end
+
+-- Get total money across all characters
+function MoneyTracker:GetTotalMoney(sameFactionOnly)
+    return addon.Modules.DB:GetTotalMoney(sameFactionOnly)
+end
+
+-- Initialize money tracker
+function MoneyTracker:Initialize()
+    -- Track money changes
+    addon.Modules.Events:OnMoneyChanged(function()
+        MoneyTracker:Update()
+    end, "MoneyTracker")
+
+    -- Initial update on login
+    addon.Modules.Events:OnPlayerLogin(function()
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        frame:SetScript("OnUpdate", function()
+            elapsed = elapsed + arg1
+            if elapsed >= 1 then
+                frame:SetScript("OnUpdate", nil)
+                MoneyTracker:Update()
+            end
+        end)
+    end, "MoneyTracker")
+
+    -- Save on logout
+    addon.Modules.Events:OnPlayerLogout(function()
+        MoneyTracker:Update()
+    end, "MoneyTracker")
+end

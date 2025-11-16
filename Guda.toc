@@ -1,0 +1,34 @@
+## Interface: 11200
+## Title: Guda
+## Notes: All-in-one bag and bank addon for Turtle WoW
+## Author: Claude
+## Version: 1.0.0
+## SavedVariables: Guda_DB
+## SavedVariablesPerCharacter: Guda_CharDB
+
+Core\Init.lua
+Core\Database.lua
+Core\Events.lua
+Core\Utils.lua
+
+Data\BagScanner.lua
+Data\BankScanner.lua
+Data\MoneyTracker.lua
+
+Sorting\SortEngine.lua
+
+# UI Lua must load before XML so OnLoad handlers exist
+UI\ItemButton.lua
+UI\BagFrame.lua
+UI\BankFrame.lua
+UI\CharacterSelector.lua
+UI\MoneyDisplay.lua
+UI\SettingsPopup.lua
+
+UI\ItemButton.xml
+UI\BagFrame.xml
+UI\BankFrame.xml
+UI\CharacterSelector.xml
+UI\SettingsPopup.xml
+
+Core\Main.lua

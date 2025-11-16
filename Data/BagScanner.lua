@@ -1,0 +1,101 @@
+-- Guda Bag Scanner
+-- Scans and stores bag contents
+
+local addon = Guda
+
+local BagScanner = {}
+addon.Modules.BagScanner = BagScanner
+
+-- Scan all bags and return data
+function BagScanner:ScanBags()
+    local bagData = {}
+
+    for _, bagID in ipairs(addon.Constants.BAGS) do
+        bagData[bagID] = self:ScanBag(bagID)
+    end
+
+    return bagData
+end
+
+-- Scan a single bag
+function BagScanner:ScanBag(bagID)
+    local bag = {
+        slots = {},
+        numSlots = addon.Modules.Utils:GetBagSlotCount(bagID),
+        freeSlots = 0,
+    }
+
+    if not addon.Modules.Utils:IsBagValid(bagID) then
+        return bag
+    end
+
+    for slot = 1, bag.numSlots do
+        local itemData = self:ScanSlot(bagID, slot)
+        bag.slots[slot] = itemData
+
+        if not itemData then
+            bag.freeSlots = bag.freeSlots + 1
+        end
+    end
+
+    return bag
+end
+
+-- Scan a single slot
+function BagScanner:ScanSlot(bagID, slot)
+    local texture, itemCount, locked, quality, readable, lootable = GetContainerItemInfo(bagID, slot)
+
+    if not texture then
+        return nil
+    end
+
+    -- In 1.12.1, must use GetContainerItemLink separately!
+    local itemLink = GetContainerItemLink(bagID, slot)
+
+    -- Get item info
+    local name, link, itemQuality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, iconTexture
+    if itemLink then
+        name, link, itemQuality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, iconTexture = addon.Modules.Utils:GetItemInfo(itemLink)
+    end
+
+    return {
+        link = itemLink,
+        texture = texture,
+        count = itemCount or 1,
+        quality = quality or itemQuality or 0,
+        name = name,
+        iLevel = iLevel,
+        class = class,
+        subclass = subclass,
+        equipSlot = equipSlot,
+        locked = locked,
+    }
+end
+
+-- Save current bags to database
+function BagScanner:SaveToDatabase()
+    local bagData = self:ScanBags()
+    addon.Modules.DB:SaveBags(bagData)
+end
+
+-- Auto-scan on bag updates
+function BagScanner:Initialize()
+    addon.Modules.Events:OnBagUpdate(function()
+        BagScanner:SaveToDatabase()
+    end, "BagScanner")
+
+    -- Initial scan on login
+    addon.Modules.Events:OnPlayerLogin(function()
+        -- Delay to ensure bags are loaded
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        frame:SetScript("OnUpdate", function()
+            elapsed = elapsed + arg1
+            if elapsed >= 1 then
+                frame:SetScript("OnUpdate", nil)
+                BagScanner:SaveToDatabase()
+                addon:Debug("Initial bag scan complete")
+            end
+        end)
+    end, "BagScanner")
+end
