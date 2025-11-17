@@ -1378,6 +1378,25 @@ function Guda_BagSlot_OnLoad(button, bagID)
         button:RegisterEvent("ITEM_LOCK_CHANGED")
         button:RegisterEvent("CURSOR_UPDATE")
         button:RegisterEvent("UNIT_INVENTORY_CHANGED")
+
+        -- Accept drops (equip when a bag is dropped on this slot)
+        button:SetScript("OnReceiveDrag", function()
+            if this and this.bagID and this.bagID ~= 0 and CursorHasItem and CursorHasItem() then
+                local inv = ContainerIDToInventoryID(this.bagID)
+                if EquipCursorItem then
+                    EquipCursorItem(inv)
+                elseif PutItemInBag then
+                    PutItemInBag(inv)
+                end
+                Guda_BagSlot_Update(this, this.bagID)
+                if BagFrame and BagFrame.Update then BagFrame:Update() end
+            end
+        end)
+    end
+
+    -- Ensure we handle right-click toggling like BankFrame
+    if button.RegisterForClicks then
+        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     end
 
     -- Initial update
@@ -1395,6 +1414,9 @@ function Guda_BagSlot_OnDragStart(frame, bagID)
         frame:SetAlpha(0.6)
         -- Immediate pickup for Classic
         PickupInventoryItem(invSlot)
+        -- Instantly reflect the change in UI (slot is now empty on cursor pickup)
+        Guda_BagSlot_Update(frame, bagID)
+        if BagFrame and BagFrame.Update then BagFrame:Update() end
     end
     -- If no texture (empty slot), do nothing - drag won't start
 end
@@ -1461,31 +1483,37 @@ end
 
 -- OnClick handler
 function Guda_BagSlot_OnClick(button, bagID)
-    -- Shift-click: Pick up/equip bag (original behavior)
-    if IsShiftKeyDown() then
-        if bagID == 0 then
-            return -- Can't pick up backpack
-        end
+    local which = arg1 -- Vanilla uses global arg1 for mouse button name
 
-        local invSlot = ContainerIDToInventoryID(bagID)
-        if CursorHasItem() then
-            PickupInventoryItem(invSlot)
-        else
-            PickupInventoryItem(invSlot)
-        end
+    -- Right-Click: toggle visibility
+    if which == "RightButton" then
+        hiddenBags[bagID] = not hiddenBags[bagID]
+
+        -- Update bag slot visual (dim/undim)
+        Guda_BagSlot_Update(button, bagID)
+
+        -- Refresh the bag display
+        BagFrame:Update()
+
+        addon:Debug(string.format("Bag %d visibility toggled via %s: %s", bagID, tostring(which), hiddenBags[bagID] and "hidden" or "visible"))
         return
     end
 
-    -- Regular click: Toggle bag visibility
-    hiddenBags[bagID] = not hiddenBags[bagID]
-
-    -- Update bag slot visual (dim/undim)
-    Guda_BagSlot_Update(button, bagID)
-
-    -- Refresh the bag display
-    BagFrame:Update()
-
-    addon:Debug(string.format("Bag %d visibility toggled: %s", bagID, hiddenBags[bagID] and "hidden" or "visible"))
+    -- Left-Click: equip bag from cursor into this slot (bags 1-4 only)
+    if which == "LeftButton" then
+        if bagID ~= 0 and CursorHasItem and CursorHasItem() then
+            local invSlot = ContainerIDToInventoryID(bagID)
+            if EquipCursorItem then
+                EquipCursorItem(invSlot)
+            else
+                if PutItemInBag then PutItemInBag(invSlot) end
+            end
+            -- Update visuals after attempted equip
+            Guda_BagSlot_Update(button, bagID)
+            BagFrame:Update()
+        end
+        return
+    end
 end
 
 -- OnEnter handler for tooltip
@@ -1497,6 +1525,11 @@ function Guda_BagSlot_OnEnter(button, bagID)
         GameTooltip:SetText("Backpack", 1.0, 1.0, 1.0)
         local numSlots = GetContainerNumSlots(0)
         GameTooltip:AddLine(string.format("%d Slots", numSlots), 0.8, 0.8, 0.8)
+        if hiddenBags[bagID] then
+            GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
+        else
+            GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
+        end
     else
         -- Bag slot tooltip
         local invSlot = ContainerIDToInventoryID(bagID)
@@ -1505,10 +1538,20 @@ function Guda_BagSlot_OnEnter(button, bagID)
         if hasItem then
             -- Show bag item tooltip
             GameTooltip:SetInventoryItem("player", invSlot)
+            if hiddenBags[bagID] then
+                GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
+            else
+                GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
+            end
         else
             -- Empty slot
             GameTooltip:SetText(string.format("Bag %d", bagID), 1.0, 1.0, 1.0)
             GameTooltip:AddLine("Empty", 0.5, 0.5, 0.5)
+            if hiddenBags[bagID] then
+                GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
+            else
+                GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
+            end
         end
     end
 
