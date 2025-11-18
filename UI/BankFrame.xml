@@ -202,6 +202,53 @@
                 </Scripts>
             </Button>
 
+            <!-- Characters Button (header left, next to Blizzard UI button) -->
+            <Button name="$parent_CharsButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BlizzardUIButton">
+                        <Offset>
+                            <AbsDimension x="2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\All_Characters")
+                            icon:SetTexCoord(0, 1, 0, 1)
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BankFrame_ToggleBankDropdown(this)
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("View Other Characters' Bank")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
             <!-- Search Bar (below title) -->
             <Frame name="$parent_SearchBar">
                 <Size>

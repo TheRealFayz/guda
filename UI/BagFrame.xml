@@ -184,9 +184,7 @@
                     <OnLoad>
                         local icon = getglobal(this:GetName().."_Icon")
                         if icon then
-                            -- Use 3D portrait of the player
-                            SetPortraitTexture(icon, "player")
-                            -- Reset TexCoord for portrait (portraits don't need cropping)
+                            icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\All_Characters")
                             icon:SetTexCoord(0, 1, 0, 1)
                         end
                     </OnLoad>
