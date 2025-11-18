@@ -207,3 +207,149 @@ function Utils:IsAmmoQuiverBag(bagID)
 
     return false
 end
+
+-- Get specialized bag type (for sorting priority)
+-- Returns: "soul", "quiver", "ammo", or nil
+function Utils:GetSpecializedBagType(bagID)
+    -- Skip backpack, bank, and keyring
+    if bagID == 0 or bagID == -1 or bagID == -2 then
+        return nil
+    end
+
+    -- Get the bag item
+    local invSlot = ContainerIDToInventoryID(bagID)
+    if not invSlot then
+        return nil
+    end
+
+    local link = GetInventoryItemLink("player", invSlot)
+    if not link then
+        return nil
+    end
+
+    -- Use tooltip scanning
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetInventoryItem("player", invSlot)
+
+    -- Scan tooltip lines
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                if string.find(text, "Soul") then
+                    return "soul"
+                elseif string.find(text, "Quiver") then
+                    return "quiver"
+                elseif string.find(text, "Ammo Pouch") then
+                    return "ammo"
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Get container priority for sorting (higher = more important)
+function Utils:GetContainerPriority(bagID)
+    local bagType = self:GetSpecializedBagType(bagID)
+    if bagType == "soul" then
+        return 40
+    elseif bagType == "quiver" then
+        return 30
+    elseif bagType == "ammo" then
+        return 20
+    else
+        return 10  -- Regular bag
+    end
+end
+
+-- Soul Shard item ID
+local SOUL_SHARD_ID = 6265
+
+-- Check if item is a Soul Shard
+function Utils:IsSoulShard(itemLink)
+    if not itemLink then return false end
+    local _, _, itemID = string.find(itemLink, "item:(%d+)")
+    return tonumber(itemID) == SOUL_SHARD_ID
+end
+
+-- Extract hyperlink from item link for tooltip scanning
+local function ExtractHyperlink(itemLink)
+    if not itemLink then return nil end
+    local _, _, hyperlink = string.find(itemLink, "|H(.+)|h")
+    return hyperlink
+end
+
+-- Check if item is Arrow or Bullet (for Quiver routing)
+function Utils:IsArrowOrBullet(itemLink)
+    if not itemLink then return false end
+
+    local hyperlink = ExtractHyperlink(itemLink)
+    if not hyperlink then return false end
+
+    -- Use tooltip scanning
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetHyperlink(hyperlink)
+
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                if string.find(text, "Arrow") or string.find(text, "Bullet") then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+-- Check if item is Ammo (any type)
+function Utils:IsAmmo(itemLink)
+    if not itemLink then return false end
+
+    local hyperlink = ExtractHyperlink(itemLink)
+    if not hyperlink then return false end
+
+    -- Use tooltip scanning
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetHyperlink(hyperlink)
+
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                -- Check for ammo keywords
+                if string.find(text, "Arrow") or
+                   string.find(text, "Bullet") or
+                   string.find(text, "Ammo") or
+                   string.find(text, "Projectile") then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+-- Get preferred container type for an item
+-- Returns: "soul", "quiver", "ammo", or nil
+function Utils:GetItemPreferredContainer(itemLink)
+    if self:IsSoulShard(itemLink) then
+        return "soul"
+    elseif self:IsArrowOrBullet(itemLink) then
+        return "quiver"
+    elseif self:IsAmmo(itemLink) then
+        return "ammo"
+    end
+    return nil
+end
