@@ -923,32 +923,46 @@ end
 function Guda_BankBagSlot_OnClick(button, bagID, which)
     local which = which or arg1 -- Vanilla uses global arg1 for mouse button name
 
-    if which == "RightButton" then
-        -- Toggle visibility
-        hiddenBankBags[bagID] = not hiddenBankBags[bagID]
-        Guda_BankBagSlot_Update(button, bagID)
-        BankFrame:Update()
-        return
-    end
+    if bagID and bagID ~= -1 then
+        local invSlot, bankButtonID = BankFrame:GetBankInvSlotForBagID(bagID)
+        if invSlot and bankButtonID then
+            local numSlots = GetNumBankSlots()
+            local isPurchased = (bankButtonID <= numSlots)
+            local hasCursorItem = CursorHasItem()
 
-    if which == "LeftButton" then
-        -- Equip bag from cursor into this bank bag slot (5-10) when bank open and purchased
-        if bagID and bagID ~= -1 and CursorHasItem and CursorHasItem() then
-            local invSlot, bankButtonID = BankFrame:GetBankInvSlotForBagID(bagID)
-            if invSlot and addon.Modules.BankScanner:IsBankOpen() then
-                local purchased = (bankButtonID and bankButtonID <= GetNumBankSlots())
-                if purchased then
-                    if EquipCursorItem then
-                        EquipCursorItem(invSlot)
-                    elseif PutItemInBag then
-                        PutItemInBag(invSlot)
+            -- Handle unpurchased slots: both left and right click show purchase dialog
+            if not isPurchased then
+                if not hasCursorItem then
+                    -- Show purchase dialog for both left and right click
+                    local cost = GetBankSlotCost(numSlots)
+                    local gudaBankFrame = getglobal("Guda_BankFrame")
+                    if gudaBankFrame then
+                        gudaBankFrame.nextSlotCost = cost
                     end
+                    StaticPopup_Show("CONFIRM_BUY_BANK_SLOT")
+                end
+                return
+            end
+
+            -- Handle purchased slots
+            if which == "RightButton" then
+                -- Toggle visibility for purchased slots
+                hiddenBankBags[bagID] = not hiddenBankBags[bagID]
+                Guda_BankBagSlot_Update(button, bagID)
+                BankFrame:Update()
+                return
+            end
+
+            if which == "LeftButton" then
+                if hasCursorItem then
+                    -- Equip bag from cursor into this purchased bank bag slot
+                    EquipCursorItem(invSlot)
                     Guda_BankBagSlot_Update(button, bagID)
                     BankFrame:Update()
                 end
+                return
             end
         end
-        return
     end
 end
 
@@ -973,36 +987,38 @@ function Guda_BankBagSlot_OnEnter(button, bagID)
         local hasItem = invSlot and GetInventoryItemTexture("player", invSlot)
 
         if hasItem then
-            -- Show bag item tooltip
+            -- Show bag item tooltip (with hide/show text)
             GameTooltip:SetInventoryItem("player", invSlot)
             if hiddenBankBags[bagID] then
                 GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
             else
                 GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
             end
+            -- Reset cursor for purchased slots with items
+            ResetCursor()
         elseif isPurchased then
-            -- Empty purchased slot
+            -- Empty purchased slot (no hide/show text, no purchase cursor)
             GameTooltip:SetText(string.format("Bank Bag Slot %d", bankButtonID or -1), 1.0, 1.0, 1.0)
             GameTooltip:AddLine("Empty", 0.8, 0.8, 0.8)
-            if hiddenBankBags[bagID] then
-                GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
-            else
-                GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
-            end
+            -- Reset cursor for empty purchased slots
+            ResetCursor()
         else
-            -- Unpurchased slot
+            -- Unpurchased slot (no hide/show text, show purchase cursor)
             GameTooltip:SetText(string.format("Bank Bag Slot %d", bankButtonID or -1), 1.0, 1.0, 1.0)
             local cost = GetBankSlotCost(numSlots)
             GameTooltip:AddLine(addon.Modules.Utils:FormatMoney(cost, false, true), 1, 1, 1)
-            if hiddenBankBags[bagID] then
-                GameTooltip:AddLine("(Hidden - Right-Click to show)", 0.8, 0.5, 0.5)
-            else
-                GameTooltip:AddLine("(Right-Click to hide)", 0.5, 0.8, 0.5)
-            end
+            -- Show purchase cursor (coin icon)
+            SetCursor("BUY_CURSOR")
         end
     end
 
     GameTooltip:Show()
+end
+
+-- OnLeave handler for bank bag slots
+function Guda_BankBagSlot_OnLeave(button, bagID)
+    GameTooltip:Hide()
+    ResetCursor()
 end
 
 -- Highlight all item slots belonging to a specific bank bag by dimming others
