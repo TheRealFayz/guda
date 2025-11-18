@@ -227,25 +227,26 @@ function Utils:GetSpecializedBagType(bagID)
         return nil
     end
 
-    -- Use tooltip scanning
-    local tooltip = GetScanTooltip()
-    tooltip:ClearLines()
-    tooltip:SetInventoryItem("player", invSlot)
+    -- Use GetItemInfo to get subclass (more reliable than tooltip scanning)
+    local name, _, quality, iLevel, reqLevel, class, subclass = GetItemInfo(link)
 
-    -- Scan tooltip lines
-    for i = 1, tooltip:NumLines() do
-        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
-        if line then
-            local text = line:GetText()
-            if text then
-                if string.find(text, "Soul") then
-                    return "soul"
-                elseif string.find(text, "Quiver") then
-                    return "quiver"
-                elseif string.find(text, "Ammo Pouch") then
-                    return "ammo"
-                end
-            end
+    if subclass then
+        -- Check for exact subclass matches
+        local subclassLower = string.lower(subclass)
+
+        -- Soul Bag / Soul Pouch
+        if string.find(subclassLower, "soul bag") or string.find(subclassLower, "soul pouch") then
+            return "soul"
+        end
+
+        -- Quiver
+        if string.find(subclassLower, "quiver") then
+            return "quiver"
+        end
+
+        -- Ammo Pouch
+        if string.find(subclassLower, "ammo pouch") then
+            return "ammo"
         end
     end
 

@@ -380,9 +380,13 @@ local function BuildTargetPositions(bagIDs, itemCount)
         })
     end
 
-    -- Sort bags by priority descending (highest first)
+    -- Sort bags by priority descending (highest first), then by bag ID ascending
     table.sort(sortedBags, function(a, b)
-        return a.priority > b.priority
+        if a.priority ~= b.priority then
+            return a.priority > b.priority
+        end
+        -- When priorities are equal, sort by bag ID ascending (0, 1, 2, 3, 4)
+        return a.bagID < b.bagID
     end)
 
     -- Build positions in priority order

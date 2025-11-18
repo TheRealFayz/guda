@@ -508,12 +508,12 @@ function Guda_BankFrame_Sort()
 
         -- If items were moved and we haven't hit the limit, do another pass
         if moveCount > 0 and passCount < maxPasses then
-            -- Wait for items to settle, then sort again
+            -- Wait for items to settle, then sort again (longer delay for many items)
             local frame = CreateFrame("Frame")
             local elapsed = 0
             frame:SetScript("OnUpdate", function()
                 elapsed = elapsed + arg1
-                if elapsed >= 0.3 then
+                if elapsed >= 0.7 then
                     frame:SetScript("OnUpdate", nil)
                     DoSortPass()  -- Recursive call for next pass
                 end
@@ -531,7 +531,7 @@ function Guda_BankFrame_Sort()
             local elapsed = 0
             frame:SetScript("OnUpdate", function()
                 elapsed = elapsed + arg1
-                if elapsed >= 0.3 then
+                if elapsed >= 0.7 then
                     frame:SetScript("OnUpdate", nil)
                     BankFrame:Update()
                 end
