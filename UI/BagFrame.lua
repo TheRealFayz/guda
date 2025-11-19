@@ -1108,6 +1108,101 @@ function Guda_BagFrame_Sort()
     DoSortPass()
 end
 
+-- Hook bag container buttons to open Guda Bag View
+local function HookBagContainers()
+    -- Hook the main bag container buttons (bags 1-4)
+    for i = 1, 4 do
+        local buttonName = "CharacterBag"..i.."Slot"
+        local button = getglobal(buttonName)
+
+        if button then
+            local originalOnClick = button:GetScript("OnClick")
+            button:SetScript("OnClick", function()
+                local mouseButton = arg1 or "LeftButton" -- Vanilla uses global arg1
+                if mouseButton == "LeftButton" then
+                    -- Open Guda Bag View instead of default bag
+                    BagFrame:Toggle()
+                else
+                    -- Allow right-click and other buttons to work normally
+                    if originalOnClick then
+                        originalOnClick()
+                    end
+                end
+            end)
+        end
+    end
+
+    -- Also hook the backpack button
+    local backpackButton = getglobal("MainMenuBarBackpackButton")
+    if backpackButton then
+        local originalOnClick = backpackButton:GetScript("OnClick")
+        backpackButton:SetScript("OnClick", function()
+            local mouseButton = arg1 or "LeftButton" -- Vanilla uses global arg1
+            if mouseButton == "LeftButton" then
+                -- Open Guda Bag View instead of default bag
+                BagFrame:Toggle()
+            else
+                -- Allow right-click and other buttons to work normally
+                if originalOnClick then
+                    originalOnClick()
+                end
+            end
+        end)
+    end
+
+    -- Hook keyring button if it exists
+    local keyringButton = getglobal("KeyRingButton")
+    if keyringButton then
+        local originalOnClick = keyringButton:GetScript("OnClick")
+        keyringButton:SetScript("OnClick", function()
+            local mouseButton = arg1 or "LeftButton" -- Vanilla uses global arg1
+            if mouseButton == "LeftButton" then
+                -- Toggle keyring in Guda Bag View
+                Guda_BagFrame_ToggleKeyring()
+                BagFrame:Toggle() -- Also open the bag frame
+            else
+                -- Allow right-click and other buttons to work normally
+                if originalOnClick then
+                    originalOnClick()
+                end
+            end
+        end)
+    end
+end
+
+-- Alternative approach: Completely replace the bag open functions
+local function ReplaceBagOpenFunctions()
+    -- Store original functions
+    local originalOpenBag = OpenBag
+    local originalToggleBag = ToggleBag
+
+    -- Override OpenBag
+    function OpenBag(bagId)
+        if bagId and bagId >= 0 and bagId <= 4 then
+            -- For regular bags, open Guda Bag View
+            BagFrame:Toggle()
+        else
+            -- For other containers, use original function
+            if originalOpenBag then
+                originalOpenBag(bagId)
+            end
+        end
+    end
+
+    -- Override ToggleBag
+    function ToggleBag(bagId)
+        if bagId and bagId >= 0 and bagId <= 4 then
+            -- For regular bags, toggle Guda Bag View
+            BagFrame:Toggle()
+        else
+            -- For other containers, use original function
+            if originalToggleBag then
+                originalToggleBag(bagId)
+            end
+        end
+    end
+end
+
 -- Hook to default bag opening
 local function HookDefaultBags()
     -- Override ToggleBackpack
@@ -1127,6 +1222,12 @@ local function HookDefaultBags()
     function CloseAllBags()
         Guda_BagFrame:Hide()
     end
+
+    -- Hook individual bag opening functions (for bag slot buttons)
+    ReplaceBagOpenFunctions()
+
+    -- Hook the bag slot button clicks directly
+    HookBagContainers()
 end
 
 -- Update lock state (controls whether frame is draggable)
@@ -1310,99 +1411,6 @@ function BagFrame:UpdateBorderVisibility()
     end
 end
 
--- Hook bag container buttons to open Guda Bag View
-local function HookBagContainers()
-    -- Hook the main bag container buttons (bags 1-4)
-    for i = 1, 4 do
-        local buttonName = "CharacterBag"..i.."Slot"
-        local button = getglobal(buttonName)
-        
-        if button then
-            local originalOnClick = button:GetScript("OnClick")
-            button:SetScript("OnClick", function(self, button)
-                if button == "LeftButton" then
-                    -- Open Guda Bag View instead of default bag
-                    BagFrame:Toggle()
-                else
-                    -- Allow right-click and other buttons to work normally
-                    if originalOnClick then
-                        originalOnClick(self, button)
-                    end
-                end
-            end)
-        end
-    end
-    
-    -- Also hook the backpack button
-    local backpackButton = getglobal("MainMenuBarBackpackButton")
-    if backpackButton then
-        local originalOnClick = backpackButton:GetScript("OnClick")
-        backpackButton:SetScript("OnClick", function(self, button)
-            if button == "LeftButton" then
-                -- Open Guda Bag View instead of default bag
-                BagFrame:Toggle()
-            else
-                -- Allow right-click and other buttons to work normally
-                if originalOnClick then
-                    originalOnClick(self, button)
-                end
-            end
-        end)
-    end
-    
-    -- Hook keyring button if it exists
-    local keyringButton = getglobal("KeyRingButton")
-    if keyringButton then
-        local originalOnClick = keyringButton:GetScript("OnClick")
-        keyringButton:SetScript("OnClick", function(self, button)
-            if button == "LeftButton" then
-                -- Toggle keyring in Guda Bag View
-                Guda_BagFrame_ToggleKeyring()
-                BagFrame:Toggle() -- Also open the bag frame
-            else
-                -- Allow right-click and other buttons to work normally
-                if originalOnClick then
-                    originalOnClick(self, button)
-                end
-            end
-        end)
-    end
-end
-
--- Alternative approach: Completely replace the bag open functions
-local function ReplaceBagOpenFunctions()
-    -- Store original functions
-    local originalOpenBag = OpenBag
-    local originalToggleBag = ToggleBag
-    
-    -- Override OpenBag
-    function OpenBag(bagId)
-        if bagId and bagId >= 0 and bagId <= 4 then
-            -- For regular bags, open Guda Bag View
-            BagFrame:Toggle()
-        else
-            -- For other containers, use original function
-            if originalOpenBag then
-                originalOpenBag(bagId)
-            end
-        end
-    end
-    
-    -- Override ToggleBag
-    function ToggleBag(bagId)
-        if bagId and bagId >= 0 and bagId <= 4 then
-            -- For regular bags, toggle Guda Bag View
-            BagFrame:Toggle()
-        else
-            -- For other containers, use original function
-            if originalToggleBag then
-                originalToggleBag(bagId)
-            end
-        end
-    end
-end
-
--- Update your existing HookDefaultBags function to be more comprehensive
 -- Bag Slot Button Handlers
 
 -- OnLoad handler for bag slot buttons
@@ -1709,8 +1717,24 @@ end
 
 -- Initialize
 function BagFrame:Initialize()
-    -- Hook default bag functions
-    HookDefaultBags()
+    -- Hook default bag functions (with slight delay to ensure UI is loaded)
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_LOGIN")
+    frame:SetScript("OnEvent", function()
+        HookDefaultBags()
+
+        -- Re-hook when character frame is opened (for safety)
+        local charFrame = getglobal("CharacterFrame")
+        if charFrame then
+            local originalShow = charFrame:GetScript("OnShow")
+            charFrame:SetScript("OnShow", function()
+                HookBagContainers()
+                if originalShow then
+                    originalShow()
+                end
+            end)
+        end
+    end)
 
     -- Update on bag changes
     addon.Modules.Events:OnBagUpdate(function()
