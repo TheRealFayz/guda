@@ -37,7 +37,6 @@ A comprehensive bag and bank management addon for Turtle WoW (1.12.1).
 
 /guda              - Toggle bags
 /guda bank         - Toggle bank view
-/guda chars        - Open character selector
 /guda sort         - Sort your bags
 /guda sortbank     - Sort your bank (must be at bank)
 /guda save         - Manually save data
