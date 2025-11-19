@@ -47,32 +47,34 @@ end
 -- Get item info with caching
 local itemCache = {}
 
-local function DebugGetItemInfo(itemID, itemName)
-	if not itemID then
-		addon:Print("NO ITEM ID for: " .. tostring(itemName))
-		return
-	end
-
-
-	local itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount,
-	itemSubType, itemTexture, itemEquipLoc, itemSellPrice = GetItemInfo(itemID)
-	addon:Print("=== GetItemInfo DEBUG ===")
-	addon:Print(string.format("Input ItemID: %d", itemID))
-	addon:Print(string.format("Input Name: %s", tostring(itemName)))
-	addon:Print("--- Return Values ---")
-	addon:Print(string.format("1. itemName: '%s'", tostring(itemName)))
-	addon:Print(string.format("2. itemLink: '%s'", tostring(itemLink)))
-	addon:Print(string.format("3. itemRarity: %s", itemRarity or 0))
-	addon:Print(string.format("4. itemLevel: %s", itemLevel or 0))
-	addon:Print(string.format("5. itemMinLevel: %s", itemMinLevel or 0))
-	addon:Print(string.format("6. itemType: '%s'", tostring(itemType)))
-	addon:Print(string.format("7. itemSubType: '%s'", tostring(itemSubType)))
-	addon:Print(string.format("8. itemStackCount: %s", itemStackCount or 0))
-	addon:Print(string.format("9. itemEquipLoc: '%s'", tostring(itemEquipLoc)))
-	addon:Print(string.format("10. itemTexture: '%s'", tostring(itemTexture)))
-	addon:Print(string.format("11. itemSellPrice: %s", itemSellPrice or 0))
-	addon:Print("=====================")
+-- Extract itemID from itemLink (Lua 5.0 compatible)
+-- Returns: itemID as number, or nil if extraction fails
+function Utils:ExtractItemID(itemLink)
+    if not itemLink then return nil end
+    local _, _, itemID = string.find(itemLink, "item:(%d+)")
+    return itemID and tonumber(itemID) or nil
 end
+
+-- Get item info with error handling (does not cache)
+-- Turtle WoW GetItemInfo signature:
+-- itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
+function Utils:GetItemInfoSafe(itemID)
+    if not itemID then
+        addon:Debug("GetItemInfoSafe: nil itemID")
+        return nil
+    end
+
+    local itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = GetItemInfo(itemID)
+
+    if not itemName then
+        addon:Debug("GetItemInfoSafe: GetItemInfo failed for itemID %d", itemID)
+        return nil
+    end
+
+    return itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
+end
+
+-- Get item info with caching (wrapper for backward compatibility)
 function Utils:GetItemInfo(itemLink)
     if not itemLink then return nil end
 
@@ -80,13 +82,11 @@ function Utils:GetItemInfo(itemLink)
         return unpack(itemCache[itemLink])
     end
 
-    -- Extract itemID from itemLink
-    local _, _, itemID = string.find(itemLink, "item:(%d+)")
+    local itemID = self:ExtractItemID(itemLink)
     if not itemID then return nil end
 
-    -- Turtle WoW GetItemInfo signature:
-    -- itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
-    local itemName, retLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = GetItemInfo(tonumber(itemID))
+    local itemName, retLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = self:GetItemInfoSafe(itemID)
+
     if itemName then
         itemCache[itemLink] = {itemName, retLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice}
         return itemName, retLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
@@ -259,14 +259,12 @@ function Utils:GetSpecializedBagType(bagID)
         return nil
     end
 
-    -- Extract itemID from link
-    local _, _, itemID = string.find(link, "item:(%d+)")
+    local itemID = self:ExtractItemID(link)
     if not itemID then
         return nil
     end
 
-    -- Use GetItemInfo to get subType (Turtle WoW signature)
-    local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = GetItemInfo(tonumber(itemID))
+    local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = self:GetItemInfoSafe(itemID)
     if itemType then
         -- Check for exact subtype matches
         local typeLower = string.lower(itemType)
@@ -310,8 +308,8 @@ local SOUL_SHARD_ID = 6265
 -- Check if item is a Soul Shard
 function Utils:IsSoulShard(itemLink)
     if not itemLink then return false end
-    local _, _, itemID = string.find(itemLink, "item:(%d+)")
-    return tonumber(itemID) == SOUL_SHARD_ID
+    local itemID = self:ExtractItemID(itemLink)
+    return itemID == SOUL_SHARD_ID
 end
 
 -- Extract hyperlink from item link for tooltip scanning
@@ -344,11 +342,11 @@ function Utils:GetItemPreferredContainer(itemLink)
 		return "soul"
 	end
 
-	-- Extract itemID and get item info
-	local _, _, itemID = string.find(itemLink, "item:(%d+)")
+	-- Get item info using utility function
+	local itemID = self:ExtractItemID(itemLink)
 	if not itemID then return nil end
 
-	local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = GetItemInfo(tonumber(itemID))
+	local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = self:GetItemInfoSafe(itemID)
 	if not itemType then return nil end
 
 	-- Only route PROJECTILE category items that are specifically arrows or bullets

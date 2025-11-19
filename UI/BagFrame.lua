@@ -1278,28 +1278,11 @@ function BagFrame:UpdateBorderVisibility()
         hideBorders = false
     end
 
+    -- Use helper function with constants
     if hideBorders then
-        -- Hide decorative borders but add thin white border
-        frame:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true,
-            tileSize = 32,
-            edgeSize = 2,
-            insets = { left = 0, right = 0, top = 0, bottom = 0 }
-        })
-        frame:SetBackdropColor(0, 0, 0, 0.9)
-        frame:SetBackdropBorderColor(1, 1, 1, 1)
+        addon:ApplyBackdrop(frame, "MINIMALIST_BORDER", "DEFAULT")
     else
-        frame:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true,
-            tileSize = 32,
-            edgeSize = 32,
-            insets = { left = 11, right = 12, top = 12, bottom = 11 }
-        })
-        frame:SetBackdropColor(0, 0, 0, 0.9)
+        addon:ApplyBackdrop(frame, "DEFAULT_FRAME", "DEFAULT")
     end
 end
 
@@ -1396,42 +1379,6 @@ local function ReplaceBagOpenFunctions()
 end
 
 -- Update your existing HookDefaultBags function to be more comprehensive
-local function HookDefaultBags()
-    -- Override ToggleBackpack
-    local originalToggleBackpack = ToggleBackpack
-    function ToggleBackpack()
-        BagFrame:Toggle()
-    end
-
-    -- Override OpenAllBags
-    local originalOpenAllBags = OpenAllBags
-    function OpenAllBags()
-        Guda_BagFrame:Show()
-    end
-
-    -- Override CloseAllBags
-    local originalCloseAllBags = CloseAllBags
-    function CloseAllBags()
-        Guda_BagFrame:Hide()
-    end
-    
-    -- Use the container hook approach
-    HookBagContainers()
-    
-    -- OR use the function replacement approach (comment out one)
-    ReplaceBagOpenFunctions()
-end
-
--- Also add this to your initialization to ensure it runs after UI is loaded
-local function DelayedHook()
-    -- Wait a bit for the UI to load completely
-    local frame = CreateFrame("Frame")
-    frame:SetScript("OnUpdate", function()
-        frame:SetScript("OnUpdate", nil)
-        HookBagContainers()
-    end)
-end
-
 -- Bag Slot Button Handlers
 
 -- OnLoad handler for bag slot buttons
@@ -1740,9 +1687,6 @@ end
 function BagFrame:Initialize()
     -- Hook default bag functions
     HookDefaultBags()
-
-    -- Delayed hook for bag containers (runs after UI loads)
-    DelayedHook()
 
     -- Update on bag changes
     addon.Modules.Events:OnBagUpdate(function()

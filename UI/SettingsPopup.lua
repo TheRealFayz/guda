@@ -364,58 +364,22 @@ function Guda_SettingsPopup_HideBordersCheckbox_OnClick(self)
         Guda.Modules.DB:SetSetting("hideBorders", isChecked)
     end
 
-    -- Update border visibility on both bag and bank frames
+    -- Update border visibility on both bag and bank frames using helper function
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame then
         if isChecked then
-            -- Hide decorative borders but add thin white border
-            bagFrame:SetBackdrop({
-                bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                tile = true,
-                tileSize = 12,
-                edgeSize = 2,
-                insets = { left = 0, right = 0, top = 0, bottom = 0 }
-            })
-            bagFrame:SetBackdropColor(0, 0, 0, 0.9)
-            bagFrame:SetBackdropBorderColor(1, 1, 1, 1)
+            Guda:ApplyBackdrop(bagFrame, "MINIMALIST_BORDER", "DEFAULT")
         else
-            bagFrame:SetBackdrop({
-                bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-                tile = true,
-                tileSize = 32,
-                edgeSize = 32,
-                insets = { left = 11, right = 12, top = 12, bottom = 11 }
-            })
-            bagFrame:SetBackdropColor(0, 0, 0, 0.9)
+            Guda:ApplyBackdrop(bagFrame, "DEFAULT_FRAME", "DEFAULT")
         end
     end
 
     local bankFrame = getglobal("Guda_BankFrame")
     if bankFrame then
         if isChecked then
-            -- Hide decorative borders but add thin white border
-            bankFrame:SetBackdrop({
-                bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                tile = true,
-                tileSize = 32,
-                edgeSize = 2,
-                insets = { left = 0, right = 0, top = 0, bottom = 0 }
-            })
-            bankFrame:SetBackdropColor(0, 0, 0, 0.9)
-            bankFrame:SetBackdropBorderColor(1, 1, 1, 1)
+            Guda:ApplyBackdrop(bankFrame, "MINIMALIST_BORDER", "DEFAULT")
         else
-            bankFrame:SetBackdrop({
-                bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-                tile = true,
-                tileSize = 32,
-                edgeSize = 32,
-                insets = { left = 11, right = 12, top = 12, bottom = 11 }
-            })
-            bankFrame:SetBackdropColor(0, 0, 0, 0.9)
+            Guda:ApplyBackdrop(bankFrame, "DEFAULT_FRAME", "DEFAULT")
         end
     end
 end

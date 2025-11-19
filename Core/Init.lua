@@ -52,10 +52,69 @@ addon.Constants = {
     BUTTONS_PER_ROW = 10,
     MIN_ICON_SIZE = 30,
     MAX_ICON_SIZE = 64,
+
+    -- Backdrop configurations (to avoid duplication across UI files)
+    Backdrops = {
+        -- Standard frame backdrop (used for main windows)
+        DEFAULT_FRAME = {
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 32,
+            insets = { left = 11, right = 12, top = 12, bottom = 11 }
+        },
+
+        -- Minimalist border (used when "hide borders" setting is enabled)
+        MINIMALIST_BORDER = {
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 2,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 }
+        },
+
+        -- Dropdown/popup backdrop (used for character selection dropdowns)
+        DROPDOWN = {
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 16,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 }
+        }
+    },
+
+    -- Backdrop colors (common configurations)
+    BackdropColors = {
+        DEFAULT = {r = 0, g = 0, b = 0, a = 0.9},
+        DROPDOWN = {r = 0, g = 0, b = 0, a = 0.95},
+    },
 }
 
 -- Initialize modules storage
 addon.Modules = {}
+
+-- Helper to apply backdrop with color
+function addon:ApplyBackdrop(frame, backdropType, colorType)
+    local backdrop = self.Constants.Backdrops[backdropType]
+    local color = self.Constants.BackdropColors[colorType or "DEFAULT"]
+
+    if not backdrop or not color then
+        self:Debug("Invalid backdrop type: %s or color type: %s",
+                   tostring(backdropType), tostring(colorType))
+        return
+    end
+
+    frame:SetBackdrop(backdrop)
+    frame:SetBackdropColor(color.r, color.g, color.b, color.a)
+
+    -- Set border color to white for minimalist borders
+    if backdropType == "MINIMALIST_BORDER" then
+        frame:SetBackdropBorderColor(1, 1, 1, 1)
+    end
+end
 
 -- Print function with addon prefix
 function addon:Print(msg, a1, a2, a3, a4, a5)

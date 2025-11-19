@@ -36,11 +36,10 @@ function EquipmentScanner:ScanEquippedItems()
 		local itemLink = GetInventoryItemLink("player", slotID)
 
 		if itemLink then
-			-- Extract itemID from link
-			local _, _, itemID = string.find(itemLink, "item:(%d+)")
+			local itemID = addon.Modules.Utils:ExtractItemID(itemLink)
 			local itemName
 			if itemID then
-				itemName = GetItemInfo(tonumber(itemID))
+				itemName = addon.Modules.Utils:GetItemInfoSafe(itemID)
 			end
 			equipped[slotName] = {
 				link = itemLink,
