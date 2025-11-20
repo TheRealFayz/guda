@@ -16,7 +16,7 @@ addon.Modules.SortEngine = SortEngine
 
 -- Priority items that should always be sorted first
 local PRIORITY_ITEMS = {
-	[6948] = true, -- Hearthstone
+	[6948] = 1, -- Hearthstone (highest priority)
 }
 
 -- Equipment slot ordering (for sorting equippable gear by slot)
@@ -108,6 +108,21 @@ local function GetTexturePattern(textureName)
 	cleaned = string.gsub(cleaned, "_%d+$", "")  -- Remove trailing _01, _02, etc.
 	cleaned = string.gsub(cleaned, "_$", "")     -- Remove trailing underscore if any
 	return cleaned
+end
+
+-- Check if an item is a mount by texture path
+local function IsMount(itemTexture)
+	if not itemTexture then return false end
+
+	local textureLower = string.lower(itemTexture)
+
+	-- Check for mount patterns in texture path
+	-- Mount textures typically contain "mount" or "ability_mount"
+	if string.find(textureLower, "mount") then
+		return true
+	end
+
+	return false
 end
 
 -- Determine subclass order for grouping related items
@@ -362,9 +377,19 @@ local function AddSortKeys(items)
 			-- Check if item is equippable (Armor or Weapon category)
 				local isEquippable = itemCategory == "Armor" or itemCategory == "Weapon"
 
-				-- Priority
-				item.priority = PRIORITY_ITEMS[itemID] and 1 or 1000
+				-- Check if item is a mount (by texture path)
+				local isMount = IsMount(itemTexture)
+
+				-- Priority (1 = hearthstone, 2 = mounts, 1000 = everything else)
+				if PRIORITY_ITEMS[itemID] then
+					item.priority = PRIORITY_ITEMS[itemID]
+				elseif isMount then
+					item.priority = 2
+				else
+					item.priority = 1000
+				end
 				item.isEquippable = isEquippable
+				item.isMount = isMount
 
 				-- Class and slot ordering
 				if isEquippable then
@@ -454,14 +479,22 @@ local function SortItems(items)
 			end
 		end
 
-		-- 5. Final tiebreakers
-		if a.invertedItemLevel ~= b.invertedItemLevel then
-			return a.invertedItemLevel < b.invertedItemLevel
-		end
+		-- 5. Final tiebreakers (group identical items together)
+		-- Sort by itemID first to ensure identical items are adjacent
 		if a.invertedItemID ~= b.invertedItemID then
 			return a.invertedItemID < b.invertedItemID
 		end
-		return a.invertedCount < b.invertedCount
+		-- Then by item level
+		if a.invertedItemLevel ~= b.invertedItemLevel then
+			return a.invertedItemLevel < b.invertedItemLevel
+		end
+		-- Then by stack count (larger stacks first)
+		if a.invertedCount ~= b.invertedCount then
+			return a.invertedCount < b.invertedCount
+		end
+		-- Final stable sort: preserve original collection order for identical items
+		-- This prevents unnecessary reshuffling when items are already sorted
+		return a.sequence < b.sequence
 	end)
 
 	return items
@@ -473,22 +506,41 @@ end
 
 local function CollectItems(bagIDs)
 	local items = {}
+	local sequence = 0  -- Add sequence number for stable sort
 
 	for _, bagID in ipairs(bagIDs) do
 		local numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
 
 		if addon.Modules.Utils:IsBagValid(bagID) then
 			for slot = 1, numSlots do
-				local itemData = addon.Modules.BagScanner:ScanSlot(bagID, slot)
+				-- Scan directly from game API instead of cached data
+				local texture, itemCount, locked = GetContainerItemInfo(bagID, slot)
+				local itemLink = GetContainerItemLink(bagID, slot)
 
-				if itemData then
+				if itemLink then
+					-- Get fresh item info with ALL return values
+					local itemID = GetItemID(itemLink)
+					local name, link, quality, iLevel, category, itemType, stackCount, subType, iconTex, equipLoc, sellPrice = GetItemInfo(itemID)
+
+					sequence = sequence + 1
 					table.insert(items, {
 						bagID = bagID,
 						slot = slot,
-						data = itemData,
-						quality = itemData.quality or 0,
-						name = itemData.name or "",
-						class = itemData.class or "",
+						sequence = sequence,  -- Preserve original order
+						data = {
+							link = itemLink,
+							texture = texture,
+							count = itemCount or 1,
+							quality = quality or 0,
+							name = name,
+							iLevel = iLevel,
+							class = category,
+							subclass = subType,  -- NOW INCLUDED!
+							locked = locked,
+						},
+						quality = quality or 0,
+						name = name or "",
+						class = category or "",
 					})
 				end
 			end
@@ -608,12 +660,175 @@ local function ApplySort(bagIDs, items, targetPositions)
 end
 
 --===========================================================================
--- Main Sort Functions
+-- PHASE 6: Sort Complexity Analysis
 --===========================================================================
+
+-- Analyze how many sorting passes are needed
+-- Returns: {passes, itemsOutOfPlace, totalItems, alreadySorted}
+local function AnalyzeSortComplexity(bagIDs)
+	-- Collect current items
+	local items = CollectItems(bagIDs)
+	local totalItems = table.getn(items)
+
+	if totalItems == 0 then
+		return {passes = 0, itemsOutOfPlace = 0, totalItems = 0, alreadySorted = true}
+	end
+
+	-- Sort to get desired order
+	local sortedItems = SortItems(items)
+
+	-- Build target positions
+	local targetPositions = BuildTargetPositions(bagIDs, totalItems)
+
+	-- Create position maps for quick lookup
+	local currentPositions = {}  -- [bagID_slot] = itemLink
+	local targetMap = {}         -- [itemLink] = {targetBag, targetSlot, currentIndex}
+
+	for i, item in ipairs(items) do
+		local key = item.bagID .. "_" .. item.slot
+		currentPositions[key] = item.data.link
+	end
+
+	for i, item in ipairs(sortedItems) do
+		local target = targetPositions[i]
+		if target and item.data.link then
+			if not targetMap[item.data.link] then
+				targetMap[item.data.link] = {}
+			end
+			table.insert(targetMap[item.data.link], {
+				targetBag = target.bag,
+				targetSlot = target.slot,
+				currentIndex = i,
+				sourceBag = item.bagID,
+				sourceSlot = item.slot
+			})
+		end
+	end
+
+	-- Count items that are already in correct position
+	local itemsInPlace = 0
+	local itemsOutOfPlace = 0
+	local maxDisplacement = 0
+
+	for i, item in ipairs(sortedItems) do
+		local target = targetPositions[i]
+		if target then
+			local sourceBag, sourceSlot = item.bagID, item.slot
+			local targetBag, targetSlot = target.bag, target.slot
+
+			if sourceBag == targetBag and sourceSlot == targetSlot then
+				itemsInPlace = itemsInPlace + 1
+			else
+				itemsOutOfPlace = itemsOutOfPlace + 1
+
+				-- Calculate displacement (how far the item needs to move)
+				local displacement = math.abs(i - itemsInPlace - itemsOutOfPlace)
+				if displacement > maxDisplacement then
+					maxDisplacement = displacement
+				end
+			end
+		end
+	end
+
+	-- If all items are in place, no sorting needed
+	if itemsOutOfPlace == 0 then
+		return {passes = 0, itemsOutOfPlace = 0, totalItems = totalItems, alreadySorted = true}
+	end
+
+	-- Estimate passes needed based on displacement complexity
+	-- Simple heuristic:
+	-- - If displacement is low (< 20% of items), probably 1-2 passes
+	-- - If displacement is medium (20-50%), probably 2-4 passes
+	-- - If displacement is high (>50%), might need 3-6 passes
+	local displacementRatio = itemsOutOfPlace / totalItems
+	local estimatedPasses
+
+	if displacementRatio < 0.1 then
+		estimatedPasses = 1
+	elseif displacementRatio < 0.3 then
+		estimatedPasses = 2
+	elseif displacementRatio < 0.5 then
+		estimatedPasses = 3
+	elseif displacementRatio < 0.7 then
+		estimatedPasses = 4
+	else
+		-- High complexity - analyze cycles
+		-- Count how many swaps are needed vs moves to empty
+		local needsSwap = 0
+		for i, item in ipairs(sortedItems) do
+			local target = targetPositions[i]
+			if target then
+				local sourceBag, sourceSlot = item.bagID, item.slot
+				local targetBag, targetSlot = target.bag, target.slot
+
+				if sourceBag ~= targetBag or sourceSlot ~= targetSlot then
+					local targetKey = targetBag .. "_" .. targetSlot
+					local targetOccupied = currentPositions[targetKey]
+					if targetOccupied then
+						needsSwap = needsSwap + 1
+					end
+				end
+			end
+		end
+
+		-- More swaps needed = more passes
+		local swapRatio = needsSwap / itemsOutOfPlace
+		if swapRatio > 0.8 then
+			estimatedPasses = 6
+		elseif swapRatio > 0.5 then
+			estimatedPasses = 5
+		else
+			estimatedPasses = 4
+		end
+	end
+
+	return {
+		passes = estimatedPasses,
+		itemsOutOfPlace = itemsOutOfPlace,
+		totalItems = totalItems,
+		alreadySorted = false
+	}
+end
 
 --===========================================================================
 -- Main Sort Functions
 --===========================================================================
+
+-- Analyze bags to determine how many passes are needed
+function SortEngine:AnalyzeBags()
+	local bagIDs = addon.Constants.BAGS
+
+	-- Detect specialized bags
+	local containers = DetectSpecializedBags(bagIDs)
+
+	-- Analyze regular bags only (specialized bags sort separately)
+	local regularBagIDs = containers.regular
+	if table.getn(regularBagIDs) > 0 then
+		return AnalyzeSortComplexity(regularBagIDs)
+	else
+		return {passes = 0, itemsOutOfPlace = 0, totalItems = 0, alreadySorted = true}
+	end
+end
+
+-- Analyze bank to determine how many passes are needed
+function SortEngine:AnalyzeBank()
+	if not addon.Modules.BankScanner:IsBankOpen() then
+		return {passes = 0, itemsOutOfPlace = 0, totalItems = 0, alreadySorted = true}
+	end
+
+	local bagIDs = addon.Constants.BANK_BAGS
+
+	-- Detect specialized bags
+	local containers = DetectSpecializedBags(bagIDs)
+
+	-- Analyze regular bags only
+	local regularBagIDs = containers.regular
+	if table.getn(regularBagIDs) > 0 then
+		return AnalyzeSortComplexity(regularBagIDs)
+	else
+		return {passes = 0, itemsOutOfPlace = 0, totalItems = 0, alreadySorted = true}
+	end
+end
 
 function SortEngine:SortBags()
 	local bagIDs = addon.Constants.BAGS

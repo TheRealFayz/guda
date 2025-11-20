@@ -66,9 +66,11 @@ function BagScanner:ScanSlot(bagID, slot)
     local itemLink = GetContainerItemLink(bagID, slot)
 
     -- Get item info
-    local name, link, itemQuality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, iconTexture
+    -- Correct order: itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType,
+    --                itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
+    local name, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice
     if itemLink then
-        name, link, itemQuality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, iconTexture = addon.Modules.Utils:GetItemInfo(itemLink)
+        name, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
     end
 
     return {
@@ -78,9 +80,9 @@ function BagScanner:ScanSlot(bagID, slot)
         quality = quality or itemQuality or 0,
         name = name,
         iLevel = iLevel,
-        class = class,
-        subclass = subclass,
-        equipSlot = equipSlot,
+        class = itemCategory,      -- Category (e.g., "Consumable", "Armor")
+        subclass = itemSubType,    -- SubType (e.g., "Potion", "Cloth")
+        equipSlot = itemEquipLoc,  -- Equipment slot (e.g., "INVTYPE_HEAD") - correct now!
         locked = locked,
     }
 end
