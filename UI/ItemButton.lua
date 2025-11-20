@@ -7,6 +7,34 @@ local addon = Guda
 local buttonPool = {}
 local nextButtonID = 1
 
+-- Hidden tooltip for scanning quest items
+local scanTooltip = CreateFrame("GameTooltip", "Guda_QuestScanTooltip", nil, "GameTooltipTemplate")
+scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+
+-- Check if an item is a quest item by scanning its tooltip
+local function IsQuestItem(bagID, slotID)
+    if not bagID or not slotID then return false end
+
+    scanTooltip:ClearLines()
+    scanTooltip:SetBagItem(bagID, slotID)
+
+    -- Check all tooltip lines for "Quest Item" text
+    for i = 1, scanTooltip:NumLines() do
+        local line = getglobal("Guda_QuestScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                -- Check for "Quest Item" text (case sensitive to match WoW's tooltip)
+                if string.find(text, "Quest Item") then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 -- Create or get a button from the pool
 function Guda_GetItemButton(parent)
     -- Try to reuse existing button
@@ -48,6 +76,37 @@ function Guda_ItemButton_OnLoad(self)
         backdrop:SetBackdropBorderColor(0, 0, 0, 0) -- Hidden by default
         backdrop:Hide()
         self.qualityBorder = backdrop
+    end
+
+    -- Create quest item border (golden, higher priority than quality border)
+    if not self.questBorder then
+        local questBackdrop = CreateFrame("Frame", nil, self)
+        questBackdrop:SetFrameLevel(self:GetFrameLevel() + 6)  -- Higher than quality border
+        questBackdrop:SetBackdrop({
+            bgFile = nil,
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 12,
+            insets = {left = 4, right = 4, top = 4, bottom = 4}
+        })
+        questBackdrop:SetBackdropBorderColor(1.0, 0.82, 0, 1) -- Golden color
+        questBackdrop:Hide()
+        self.questBorder = questBackdrop
+    end
+
+    -- Create quest icon overlay (exclamation mark in corner)
+    if not self.questIcon then
+        local iconFrame = CreateFrame("Frame", nil, self)
+        iconFrame:SetFrameLevel(self:GetFrameLevel() + 7)  -- Above quest border
+        iconFrame:SetWidth(16)
+        iconFrame:SetHeight(16)
+
+        local texture = iconFrame:CreateTexture(nil, "OVERLAY")
+        texture:SetAllPoints(iconFrame)
+        texture:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+        texture:SetTexCoord(0, 1, 0, 1)
+
+        iconFrame:Hide()
+        self.questIcon = iconFrame
     end
 end
 
@@ -225,6 +284,26 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             end
         end
 
+        -- Check for quest items and show golden border + icon (higher priority than quality border)
+        -- Only check for current character's items (not other characters or bank in read-only mode)
+        local isQuest = not self.otherChar and not self.isReadOnly and IsQuestItem(bagID, slotID)
+
+        if self.questBorder then
+            if isQuest then
+                self.questBorder:Show()
+            else
+                self.questBorder:Hide()
+            end
+        end
+
+        if self.questIcon then
+            if isQuest then
+                self.questIcon:Show()
+            else
+                self.questIcon:Hide()
+            end
+        end
+
         self:Show()
     else
         self.hasItem = false
@@ -265,6 +344,14 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             end
         end
 
+        -- Hide quest border and icon for empty slots
+        if self.questBorder then
+            self.questBorder:Hide()
+        end
+        if self.questIcon then
+            self.questIcon:Hide()
+        end
+
         self:Show()
     end
 
@@ -302,6 +389,24 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 self.qualityBorder:ClearAllPoints()
                 self.qualityBorder:SetPoint("TOPLEFT", iconTexture, "TOPLEFT", -5, 5)
                 self.qualityBorder:SetPoint("BOTTOMRIGHT", iconTexture, "BOTTOMRIGHT", 5, -5)
+            end
+
+            -- Position quest border around the icon (same as quality border)
+            if self.questBorder then
+                self.questBorder:ClearAllPoints()
+                self.questBorder:SetPoint("TOPLEFT", iconTexture, "TOPLEFT", -5, 5)
+                self.questBorder:SetPoint("BOTTOMRIGHT", iconTexture, "BOTTOMRIGHT", 5, -5)
+            end
+
+            -- Position quest icon in top-right corner
+            if self.questIcon then
+                -- Scale icon size based on button size
+                local questIconSize = math.max(12, math.min(20, iconSize * 0.35))
+                self.questIcon:SetWidth(questIconSize)
+                self.questIcon:SetHeight(questIconSize)
+
+                self.questIcon:ClearAllPoints()
+                self.questIcon:SetPoint("TOPRIGHT", self, "TOPRIGHT", 2, 2)
             end
         else
             -- Hide icon for empty slots
