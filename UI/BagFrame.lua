@@ -130,14 +130,34 @@ function BagFrame:ShowCurrentCharacter()
 	self:Update()
 end
 
+-- Update lock states of existing buttons (lightweight, used during drag)
+function BagFrame:UpdateLockStates()
+	for _, bagParent in pairs(bagParents) do
+		if bagParent then
+			local buttons = { bagParent:GetChildren() }
+			for _, button in ipairs(buttons) do
+				if button.hasItem ~= nil and button:IsShown() and button.bagID and button.slotID then
+					-- Get live lock state
+					local _, _, locked = GetContainerItemInfo(button.bagID, button.slotID)
+					-- Update desaturation (gray out locked items)
+					if not button.otherChar and not button.isReadOnly and SetItemButtonDesaturated then
+						SetItemButtonDesaturated(button, locked, 0.5, 0.5, 0.5)
+					end
+				end
+			end
+		end
+	end
+end
+
 -- Update display
 function BagFrame:Update()
 	if not Guda_BagFrame:IsShown() then
 		return
 	end
 
-	-- Skip update if cursor is holding an item (mid-drag) to prevent breaking drag/drop
+	-- If cursor is holding an item (mid-drag), only update lock states, don't rebuild UI
 	if CursorHasItem and CursorHasItem() then
+		self:UpdateLockStates()
 		return
 	end
 
