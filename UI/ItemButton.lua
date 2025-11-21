@@ -573,23 +573,23 @@ function Guda_ItemButton_OnEnter(self)
 
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-	-- For bank items, use the item link directly since SetBagItem might not work for bank bags
-	if self.isBank then
-		if self.bagID == -1 then
-			local bankSlotId = BankButtonIDToInvSlotID(self.slotID)
-			addon:Print("BANK MAIN BAG:" .. bankSlotId)
-			GameTooltip:SetInventoryItem('player', bankSlotId)
-		elseif self.itemData.link then
-			local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
-			if hyperlink then
-				GameTooltip:SetHyperlink(hyperlink)
-			else
-				GameTooltip:SetBagItem(self.bagID, self.slotID)
-			end
-			addon:Print("OTHER BANK BAG")
+	-- For other characters or read-only mode, use cached item link
+	if self.otherChar or self.isReadOnly then
+		if self.itemData and self.itemData.link then
+			GameTooltip:SetHyperlink(self.itemData.link)
+		end
+	-- Special handling for bank main bag when bank might be closed
+	elseif self.isBank and self.bagID == -1 then
+		local bankFrame = getglobal("BankFrame")
+		if bankFrame and bankFrame:IsVisible() then
+			-- Bank is open - use SetBagItem which will trigger inventory slot handling
+			GameTooltip:SetBagItem(self.bagID, self.slotID)
+		elseif self.itemData and self.itemData.link then
+			-- Bank is closed - use cached link
+			GameTooltip:SetHyperlink(self.itemData.link)
 		end
 	else
-		addon:Print("OTHER BAG")
+		-- For live mode: use SetBagItem for all bags
 		GameTooltip:SetBagItem(self.bagID, self.slotID)
 	end
 

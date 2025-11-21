@@ -300,14 +300,38 @@ function Tooltip:Initialize()
 
 	-- Hook SetBagItem
 	local oldSetBagItem = GameTooltip.SetBagItem
+	local oldSetInventoryItem = GameTooltip.SetInventoryItem
 	function GameTooltip:SetBagItem(bag, slot)
 		return WithDeferredMoney(self, function()
-			local ret = oldSetBagItem(self, bag, slot)
-			local link = GetContainerItemLink(bag, slot)
-			if link then
-				Tooltip:AddInventoryInfo(self, link)
+			-- Handle bank main bag (-1) specially using inventory slots
+			if bag == -1 then
+				-- Bank inventory slots are only accessible when bank is open
+				local bankFrame = getglobal("BankFrame")
+				if bankFrame and bankFrame:IsVisible() then
+					-- BankButtonIDToInvSlotID expects 0-based button ID (0-23), slot is 1-based (1-24)
+					local invSlot = BankButtonIDToInvSlotID(slot)
+					if invSlot then
+						-- Use the inventory item method for bank main bag
+						local ret = oldSetInventoryItem(self, "player", invSlot)
+						local link = GetInventoryItemLink("player", invSlot)
+						if link then
+							Tooltip:AddInventoryInfo(self, link)
+						end
+						return ret
+					end
+				else
+					-- Bank is closed - can't access inventory slots, skip tooltip
+					return nil
+				end
+			else
+				-- Regular bags and bank bags (not main bag)
+				local ret = oldSetBagItem(self, bag, slot)
+				local link = GetContainerItemLink(bag, slot)
+				if link then
+					Tooltip:AddInventoryInfo(self, link)
+				end
+				return ret
 			end
-			return ret
 		end)
 	end
 
