@@ -320,12 +320,12 @@ function Tooltip:Initialize()
 				end
 			else
 				-- Bank is closed or readonly mode - try to get cached link
-				if bag == -1 then
+				if bag == -1 or (bag >=5 and bag <=10) then
 					-- Get cached link from database for main bank bag
 					local playerName = addon.Modules.DB:GetPlayerFullName()
 					local bankData = addon.Modules.DB:GetCharacterBank(playerName)
-					if bankData and bankData[-1] and bankData[-1].slots and bankData[-1].slots[slot] then
-						local itemData = bankData[-1].slots[slot]
+					if bankData and bankData[bag] and bankData[bag].slots and bankData[bag].slots[slot] then
+						local itemData = bankData[bag].slots[slot]
 						if itemData.link and string.find(itemData.link, "|H") then
 							-- Extract hyperlink from full colored string: |cFFFFFFFF|Hitem:...|h[Name]|h|r
 							-- SetHyperlink needs just the item:... part
