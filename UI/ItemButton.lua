@@ -640,6 +640,11 @@ function Guda_ItemButton_OnReceiveDrag(self)
 
     -- Place the item being dragged
     PickupContainerItem(self.bagID, self.slotID)
+
+    -- Trigger UI update after drop completes (was skipped during drag)
+    if addon and addon.Modules and addon.Modules.BagFrame then
+        addon.Modules.BagFrame:Update()
+    end
 end
 
 -- Handle mouse-up to emulate Blizzard drop behavior on 1.12 where OnReceiveDrag may not always fire
@@ -653,6 +658,11 @@ function Guda_ItemButton_OnDragStop(self)
     -- Reset cursor to default to avoid lingering special cursors
     if ResetCursor then
         ResetCursor()
+    end
+
+    -- Trigger UI update after drag completes (was skipped during drag)
+    if addon and addon.Modules and addon.Modules.BagFrame then
+        addon.Modules.BagFrame:Update()
     end
 end
 

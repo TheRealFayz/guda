@@ -95,14 +95,15 @@ end
 
 -- OnHide
 function Guda_BagFrame_OnHide(self)
--- Only release buttons that belong to this frame
-	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-	if itemContainer then
-		local children = { itemContainer:GetChildren() }
-		for _, child in ipairs(children) do
-			if child.hasItem ~= nil then -- It's an item button
-				child:Hide()
-				child:ClearAllPoints()
+	-- Clean up all buttons when frame is hidden (safe since we're not displaying)
+	for _, bagParent in pairs(bagParents) do
+		if bagParent then
+			local buttons = { bagParent:GetChildren() }
+			for _, button in ipairs(buttons) do
+				if button.hasItem ~= nil then
+					button:Hide()
+					button:ClearAllPoints()
+				end
 			end
 		end
 	end
@@ -135,14 +136,19 @@ function BagFrame:Update()
 		return
 	end
 
-	-- Only release buttons that belong to this frame
-	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-	if itemContainer then
-		local children = { itemContainer:GetChildren() }
-		for _, child in ipairs(children) do
-			if child.hasItem ~= nil then -- It's an item button
-				child:Hide()
-				child:ClearAllPoints()
+	-- Skip update if cursor is holding an item (mid-drag) to prevent breaking drag/drop
+	if CursorHasItem and CursorHasItem() then
+		return
+	end
+
+	-- Mark all existing buttons as not in use (we'll mark active ones during display)
+	for _, bagParent in pairs(bagParents) do
+		if bagParent then
+			local buttons = { bagParent:GetChildren() }
+			for _, button in ipairs(buttons) do
+				if button.hasItem ~= nil then
+					button.inUse = false
+				end
 			end
 		end
 	end
@@ -184,6 +190,19 @@ function BagFrame:Update()
 
 	-- Update bag slots info
 	self:UpdateBagSlotsInfo(bagData, isOtherChar)
+
+	-- Clean up unused buttons AFTER display is complete (prevents drag/drop issues)
+	for _, bagParent in pairs(bagParents) do
+		if bagParent then
+			local buttons = { bagParent:GetChildren() }
+			for _, button in ipairs(buttons) do
+				if button.hasItem ~= nil and not button.inUse then
+					button:Hide()
+					button:ClearAllPoints()
+				end
+			end
+		end
+	end
 end
 
 -- Display items
@@ -303,6 +322,7 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 				local matchesFilter = self:PassesSearchFilter(itemData)
 
 				local button = Guda_GetItemButton(bagParent)
+				button.inUse = true  -- Mark this button as actively in use
 
 				-- Position button
 				local xPos = x + (col * (buttonSize + spacing))
