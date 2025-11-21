@@ -218,6 +218,8 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	local totalCount = totalBags + totalBank + totalEquipped
 
 	if hasAnyItems then
+
+		-- Top padding above the Inventory block (~10-12px visually)
 		tooltip:AddLine(" ")
 
 		-- Inventory label in exact bag frame title color
@@ -263,7 +265,7 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 			tooltip:AddDoubleLine(displayName, countText, r, g, b, 1.0, 1.0, 1.0)
 		end
 
-		-- Add small gap between inventory data and vendor sell price
+		-- Bottom padding below the Inventory block (~10-12px visually)
 		tooltip:AddLine(" ")
 
 		tooltip:Show()
@@ -322,9 +324,8 @@ function Tooltip:Initialize()
 			Orig_SetTooltipMoney(q[1], q[2], q[3], q[4], q[5], q[6], q[7])
 		end
 
-		-- Nudge the vendor price upward a bit so it's visually closer to the item info
-		-- In WoW UI coordinates, positive Y moves up; increase by 15px (adjust if you prefer)
-		AdjustMoneyFrames(tooltip, 15)
+		-- Add ~5px more space below the Inventory block by reducing the upward nudge from 15px to 10px
+		AdjustMoneyFrames(tooltip, 12)
 		return ret
 	end
 
