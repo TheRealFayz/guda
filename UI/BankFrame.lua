@@ -1270,46 +1270,49 @@ end
 
 -- Highlight all item slots belonging to a specific bank bag by dimming others
 function Guda_BankFrame_HighlightBagSlots(bagID)
-    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
-    if not itemContainer then
-        return
-    end
+    -- Buttons are parented under per-bag parents, not directly under the item container
+    local highlightCount, dimCount = 0, 0
 
-    local highlightCount = 0
-    local dimCount = 0
-
-    -- Iterate through all children (item buttons)
-    local children = { itemContainer:GetChildren() }
-    for _, button in ipairs(children) do
-        -- Check if this is an item button
-        if button.hasItem ~= nil and button:IsShown() and not button.isBagSlot then
-            if button.bagID == bagID then
-                -- This button belongs to the hovered bag - keep it bright
-                button:SetAlpha(1.0)
-                highlightCount = highlightCount + 1
-            else
-                -- This button belongs to a different bag - dim it
-                button:SetAlpha(0.25)
-                dimCount = dimCount + 1
+    for _, bankBagParent in pairs(bankBagParents) do
+        if bankBagParent then
+            local children = { bankBagParent:GetChildren() }
+            for _, button in ipairs(children) do
+                if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
+                    if button.bagID == bagID then
+                        button:SetAlpha(1.0)
+                        highlightCount = highlightCount + 1
+                    else
+                        button:SetAlpha(0.25)
+                        dimCount = dimCount + 1
+                    end
+                end
             end
         end
     end
 
-    addon:Debug(string.format("BankFrame HighlightBagSlots: Highlighted %d slots, dimmed %d slots for bagID %d", highlightCount, dimCount, bagID))
+    if addon and addon.Debug then
+        addon:Debug(string.format("BankFrame HighlightBagSlots: Highlighted %d slots, dimmed %d slots for bagID %d", highlightCount, dimCount, bagID))
+    end
 end
 
 -- Clear all highlighting by restoring full opacity to all slots
 function Guda_BankFrame_ClearHighlightedSlots()
-    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
-    if not itemContainer then return end
+    -- Restore alpha to search-filter state (pfUI style). If no search, full opacity.
+    local searchActive = BankFrame and BankFrame.IsSearchActive and BankFrame:IsSearchActive()
 
-    -- Iterate through all children (item buttons)
-    local children = { itemContainer:GetChildren() }
-    for _, button in ipairs(children) do
-        -- Check if this is an item button
-        if button.hasItem ~= nil and button:IsShown() and not button.isBagSlot then
-            -- Restore full opacity
-            button:SetAlpha(1.0)
+    for _, bankBagParent in pairs(bankBagParents) do
+        if bankBagParent then
+            local children = { bankBagParent:GetChildren() }
+            for _, button in ipairs(children) do
+                if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
+                    if searchActive and BankFrame and BankFrame.PassesSearchFilter then
+                        local matches = BankFrame:PassesSearchFilter(button.itemData)
+                        button:SetAlpha(matches and 1.0 or 0.25)
+                    else
+                        button:SetAlpha(1.0)
+                    end
+                end
+            end
         end
     end
 end

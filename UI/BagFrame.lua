@@ -1788,47 +1788,40 @@ end
 
 -- Highlight all item slots belonging to a specific bag by dimming others
 function Guda_BagFrame_HighlightBagSlots(bagID)
-	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-	if not itemContainer then
-		return
-	end
+    -- Use the tracked itemButtons list because actual buttons are parented under per-bag parents
+    if not itemButtons or type(itemButtons) ~= "table" then return end
 
-	local highlightCount = 0
-	local dimCount = 0
+    local highlightCount, dimCount = 0, 0
 
-	-- Iterate through all children (item buttons)
-	local children = { itemContainer:GetChildren() }
-	for _, button in ipairs(children) do
-	-- Check if this is an item button
-		if button.hasItem ~= nil and button:IsShown() then
-			if button.bagID == bagID then
-			-- This button belongs to the hovered bag - keep it bright
-				button:SetAlpha(1.0)
-				highlightCount = highlightCount + 1
-			else
-			-- This button belongs to a different bag - dim it
-				button:SetAlpha(0.25)
-				dimCount = dimCount + 1
-			end
-		end
-	end
-
+    for _, button in ipairs(itemButtons) do
+        if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
+            if button.bagID == bagID then
+                button:SetAlpha(1.0)
+                highlightCount = highlightCount + 1
+            else
+                button:SetAlpha(0.25)
+                dimCount = dimCount + 1
+            end
+        end
+    end
 end
 
 -- Clear all highlighting by restoring full opacity to all slots
 function Guda_BagFrame_ClearHighlightedSlots()
-	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-	if not itemContainer then return end
+    -- Restore alpha to whatever the search filter dictates (pfUI style). If no search, full opacity.
+    if not itemButtons or type(itemButtons) ~= "table" then return end
 
-	-- Iterate through all children (item buttons)
-	local children = { itemContainer:GetChildren() }
-	for _, button in ipairs(children) do
-	-- Check if this is an item button
-		if button.hasItem ~= nil and button:IsShown() then
-		-- Restore full opacity
-			button:SetAlpha(1.0)
-		end
-	end
+    local searchActive = BagFrame and BagFrame.IsSearchActive and BagFrame:IsSearchActive()
+    for _, button in ipairs(itemButtons) do
+        if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
+            if searchActive and BagFrame and BagFrame.PassesSearchFilter then
+                local matches = BagFrame:PassesSearchFilter(button.itemData)
+                button:SetAlpha(matches and 1.0 or 0.25)
+            else
+                button:SetAlpha(1.0)
+            end
+        end
+    end
 end
 
 -- Highlight a specific bag button in the toolbar
