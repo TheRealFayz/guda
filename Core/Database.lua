@@ -117,7 +117,7 @@ end
 
 -- Get current player's full name
 function DB:GetPlayerFullName()
-	return playerName .. "-" .. playerRealm
+	return playerName
 end
 
 -- Get current character data

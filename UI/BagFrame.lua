@@ -858,7 +858,7 @@ function Guda_BagFrame_ToggleCharacterDropdown(button)
 	-- Button text
 	local currentCharText = currentCharButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	currentCharText:SetPoint("LEFT", currentCharButton, "LEFT", 8, 0)
-	currentCharText:SetText("Current Character")
+	currentCharText:SetText("Characters")
 
 	-- Button scripts
 	currentCharButton:SetScript("OnEnter", function()
@@ -1001,7 +1001,6 @@ function Guda_BagFrame_ToggleBankDropdown(button)
 	-- Position dropdown below the button
 	bankDropdown:ClearAllPoints()
 	bankDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
-
 	-- Clear existing buttons
 	for _, btn in ipairs(bankDropdown.buttons) do
 		btn:Hide()

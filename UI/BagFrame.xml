@@ -193,7 +193,7 @@
                     </OnClick>
                     <OnEnter>
                         GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                        GameTooltip:SetText("View Other Characters")
+                        GameTooltip:SetText("My Characters")
                         GameTooltip:Show()
                     </OnEnter>
                     <OnLeave>

@@ -240,7 +240,7 @@
                     </OnClick>
                     <OnEnter>
                         GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                        GameTooltip:SetText("View Other Characters' Bank")
+                        GameTooltip:SetText("View Bank")
                         GameTooltip:Show()
                     </OnEnter>
                     <OnLeave>

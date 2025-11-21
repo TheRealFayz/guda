@@ -167,7 +167,7 @@ function BankFrame:Update()
         bankData = addon.Modules.DB:GetCharacterBank(currentViewChar)
         isOtherChar = true
         charName = currentViewChar
-        getglobal("Guda_BankFrame_Title"):SetText("Bank - " .. currentViewChar)
+        getglobal("Guda_BankFrame_Title"):SetText(currentViewChar .. "'s Bank")
     else
         -- Viewing current character's bank
         if bankIsOpen then
@@ -175,12 +175,12 @@ function BankFrame:Update()
             bankData = addon.Modules.BankScanner:ScanBank()
             -- Use current character's name for the title
             local playerName = addon.Modules.DB:GetPlayerFullName()
-            getglobal("Guda_BankFrame_Title"):SetText("Bank - " .. playerName)
+            getglobal("Guda_BankFrame_Title"):SetText(playerName .. "'s Bank")
         else
             -- Bank is closed - use saved data (read-only mode)
             local playerName = addon.Modules.DB:GetPlayerFullName()
             bankData = addon.Modules.DB:GetCharacterBank(playerName)
-            getglobal("Guda_BankFrame_Title"):SetText("Bank - " .. playerName)
+            getglobal("Guda_BankFrame_Title"):SetText(playerName .. "'s Bank")
         end
     end
 
