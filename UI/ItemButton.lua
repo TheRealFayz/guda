@@ -573,9 +573,18 @@ function Guda_ItemButton_OnEnter(self)
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-    -- For bank items, use the item link directly since SetBagItem might not work for bank bags
-    if self.isBank and self.itemData.link then
+    -- For read-only mode (other characters or saved data), use item link from database
+    if (self.isReadOnly or self.otherChar) and self.itemData and self.itemData.link then
         -- Extract hyperlink from item link: |cFFFFFFFF|Hitem:1234:0:0:0|h[Name]|h|r -> item:1234:0:0:0
+        local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
+        if hyperlink then
+            GameTooltip:SetHyperlink(hyperlink)
+        else
+            -- Fallback: try to use the link directly
+            GameTooltip:SetHyperlink(self.itemData.link)
+        end
+    -- For bank items in live mode, use item link since SetBagItem might not work for bank bags
+    elseif self.isBank and not self.otherChar and self.itemData and self.itemData.link then
         local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
         if hyperlink then
             GameTooltip:SetHyperlink(hyperlink)
@@ -584,7 +593,7 @@ function Guda_ItemButton_OnEnter(self)
             GameTooltip:SetBagItem(self.bagID, self.slotID)
         end
     else
-        -- For regular bags, use SetBagItem as normal
+        -- For regular bags in live mode, use SetBagItem for real-time data
         GameTooltip:SetBagItem(self.bagID, self.slotID)
     end
 
