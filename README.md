@@ -173,5 +173,5 @@ WTF/Account/<ACCOUNT_NAME>/SavedVariables/Guda.lua.bak
 
 ## 📢 Support
 
-For bugs or feature requests, please open an issue or post on the Turtle WoW forums.
+For bugs or feature requests, please open an issue.
 Your feedback helps improve the addon!

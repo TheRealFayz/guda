@@ -8,30 +8,46 @@ local nextButtonID = 1
 local scanTooltip = CreateFrame("GameTooltip", "Guda_QuestScanTooltip", nil, "GameTooltipTemplate")
 scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 
--- (rollback) no custom drag-source tracking or target resolution; rely on Blizzard handlers
-
 -- Check if an item is a quest item by scanning its tooltip
 local function IsQuestItem(bagID, slotID)
-    if not bagID or not slotID then return false end
+	if not bagID or not slotID then return false end
 
-    scanTooltip:ClearLines()
-    scanTooltip:SetBagItem(bagID, slotID)
+	scanTooltip:ClearLines()
+	scanTooltip:SetBagItem(bagID, slotID)
 
-    -- Check all tooltip lines for "Quest Item" text
-    for i = 1, scanTooltip:NumLines() do
-        local line = getglobal("Guda_QuestScanTooltipTextLeft" .. i)
-        if line then
-            local text = line:GetText()
-            if text then
-                -- Check for "Quest Item" text (case sensitive to match WoW's tooltip)
-                if string.find(text, "Quest Item") then
-                    return true
-                end
-            end
-        end
-    end
+	local isQuestItem = false
 
-    return false
+	-- Check all tooltip lines for quest-related text
+	for i = 1, scanTooltip:NumLines() do
+		local line = getglobal("Guda_QuestScanTooltipTextLeft" .. i)
+		if line then
+			local text = line:GetText()
+			if text then
+				addon:Print("text:%s", text or '')
+				-- Check for various quest-related text patterns
+				if string.find(text, "Quest Item") or
+				string.find(text, "Quest Starter") or
+				(string.find(text, "Manual") or string.find(text, "Soulbond")) or
+				string.find(text, "This Item Begins a Quest") then
+					isQuestItem = true
+					break
+				end
+			end
+		end
+	end
+
+	-- Also check if the item type is "Quest"
+	if not isQuestItem then
+		local link = GetContainerItemLink(bagID, slotID)
+		if link then
+			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType = GetItemInfo(link)
+			if itemType == "Quest" then
+				isQuestItem = true
+			end
+		end
+	end
+
+	return isQuestItem
 end
 
 --=====================================================
@@ -134,8 +150,6 @@ local function IsItemUnusable(bagID, slotID, isBank)
         end
     end
 
-    if scanTooltip.Hide then scanTooltip:Hide() end
-
     return false
 end
 
@@ -172,38 +186,6 @@ local function Guda_ItemButton_UpdateUsableTint(self)
     end
 end
 
---=====================================================
--- Global rescanner to keep unusable tint in sync
---=====================================================
-local function Guda_ItemButton_RescanAllUsableTint()
-    if not buttonPool then return end
-    for _, btn in pairs(buttonPool) do
-        if btn and btn:IsShown() and btn.hasItem and not btn.isReadOnly then
-            if Guda_ItemButton_UpdateUsableTint then
-                Guda_ItemButton_UpdateUsableTint(btn)
-            end
-        end
-    end
-end
-
--- Event frame to refresh overlays when usability can change
-if not Guda_UnusableTintEventFrame then
-    Guda_UnusableTintEventFrame = CreateFrame("Frame", "Guda_UnusableTintEventFrame")
-    Guda_UnusableTintEventFrame:RegisterEvent("BAG_UPDATE")
-    Guda_UnusableTintEventFrame:RegisterEvent("UNIT_INVENTORY_CHANGED")
-    Guda_UnusableTintEventFrame:RegisterEvent("PLAYER_LEVEL_UP")
-    if GetBuildInfo then
-        -- Some clients expose skill update via this event name
-        Guda_UnusableTintEventFrame:RegisterEvent("SKILL_LINES_CHANGED")
-    end
-    -- Bank related
-    Guda_UnusableTintEventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
-    Guda_UnusableTintEventFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
-
-    Guda_UnusableTintEventFrame:SetScript("OnEvent", function()
-        Guda_ItemButton_RescanAllUsableTint()
-    end)
-end
 
 -- Create or get a button from the pool
 function Guda_GetItemButton(parent)
