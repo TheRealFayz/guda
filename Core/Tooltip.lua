@@ -266,7 +266,7 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 		end
 
 		-- Bottom padding below the Inventory block (~10-12px visually)
-		tooltip:AddLine(" ")
+		--tooltip:AddLine(" ")
 
 		tooltip:Show()
 	end
@@ -325,7 +325,7 @@ function Tooltip:Initialize()
 		end
 
 		-- Add ~5px more space below the Inventory block by reducing the upward nudge from 15px to 10px
-		AdjustMoneyFrames(tooltip, 12)
+		--AdjustMoneyFrames(tooltip, 12)
 		return ret
 	end
 
