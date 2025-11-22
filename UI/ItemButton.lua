@@ -1,11 +1,10 @@
 -- Local alias to the addon root table (must be defined before any usages below)
 local addon = Guda
- 
+
 -- Item button pool
 local buttonPool = {}
 local nextButtonID = 1
 
--- Hidden tooltip for scanning quest items
 local scanTooltip = CreateFrame("GameTooltip", "Guda_QuestScanTooltip", nil, "GameTooltipTemplate")
 scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 
@@ -33,6 +32,179 @@ local function IsQuestItem(bagID, slotID)
     end
 
     return false
+end
+
+--=====================================================
+-- Unusable item detection (pfUI-inspired implementation)
+-- Adds a red tint overlay to items that your character
+-- cannot use (class/race/skill restrictions), excluding
+-- purely broken durability cases.
+--=====================================================
+local function Guda_GetUnusableColor()
+    if pfUI and C and C.appearance and C.appearance.bags and C.appearance.bags.unusable_color then
+        local cr, cg, cb, ca = strsplit(",", C.appearance.bags.unusable_color)
+        local r = tonumber(cr) or 0.9
+        local g = tonumber(cg) or 0.2
+        local b = tonumber(cb) or 0.2
+        local a = tonumber(ca) or 1.0
+        return r, g, b, a
+    end
+    -- Then Blizzard's RED_FONT_COLOR if present
+    if RED_FONT_COLOR then
+        return RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b, 1.0
+    end
+    -- Default pfUI-like
+    return 0.9, 0.2, 0.2, 1.0
+end
+
+-- Build durability match pattern based on the client template
+local durabilityPattern
+if DURABILITY_TEMPLATE then
+    -- e.g. "Durability %d / %d" -> "Durability (.+)"
+    durabilityPattern = string.gsub(DURABILITY_TEMPLATE, "%%[^%s]+", "(.+)")
+end
+
+-- Tiny helper to compare font color to Blizzard's RED_FONT_COLOR
+local function IsRedColor(r, g, b)
+    if not r or not g or not b or not RED_FONT_COLOR then return false end
+    local dr = math.abs(r - RED_FONT_COLOR.r)
+    local dg = math.abs(g - RED_FONT_COLOR.g)
+    local db = math.abs(b - RED_FONT_COLOR.b)
+    return (dr < 0.08 and dg < 0.08 and db < 0.08)
+end
+
+-- Scan tooltip for red text that is NOT a durability line
+local function IsItemUnusable(bagID, slotID, isBank)
+    if not bagID or not slotID then return false end
+
+    -- Some clients require SetOwner before every SetBagItem/SetInventoryItem to populate lines
+    if scanTooltip.SetOwner then
+        scanTooltip:SetOwner(UIParent or WorldFrame, "ANCHOR_NONE")
+    end
+    scanTooltip:ClearLines()
+
+    if isBank and bagID == -1 then
+        -- Bank frame item buttons map slots 1.. to inventory slots 40.. (39 + slot)
+        if scanTooltip.SetInventoryItem then
+            scanTooltip:SetInventoryItem("player", 39 + slotID)
+        else
+            -- Fallback to bag scan if API missing
+            scanTooltip:SetBagItem(bagID, slotID)
+        end
+    else
+        scanTooltip:SetBagItem(bagID, slotID)
+    end
+
+    if scanTooltip.Show then scanTooltip:Show() end
+
+    local num = scanTooltip:NumLines() or 0
+    for i = 1, num do
+        -- Scan LEFT column
+        local left = getglobal("Guda_QuestScanTooltipTextLeft" .. i)
+        if left and left:IsShown() then
+            local text = left:GetText()
+            local r, g, b = left:GetTextColor()
+            -- Be tolerant with red detection in case client colors differ slightly
+            local isRed = IsRedColor(r, g, b) or (r and g and b and r > 0.85 and g < 0.3 and b < 0.3)
+            if text and isRed then
+                -- Ignore red durability (broken) lines
+                if durabilityPattern and string.find(text, durabilityPattern, 1) then
+                    -- skip durability
+                else
+                    if scanTooltip.Hide then scanTooltip:Hide() end
+                    return true
+                end
+            end
+        end
+
+        -- Scan RIGHT column as well (required level etc can appear here on some clients)
+        local right = getglobal("Guda_QuestScanTooltipTextRight" .. i)
+        if right and right:IsShown() then
+            local text = right:GetText()
+            local r, g, b = right:GetTextColor()
+            local isRed = IsRedColor(r, g, b) or (r and g and b and r > 0.85 and g < 0.3 and b < 0.3)
+            if text and isRed then
+                if durabilityPattern and string.find(text, durabilityPattern, 1) then
+                    -- skip durability
+                else
+                    if scanTooltip.Hide then scanTooltip:Hide() end
+                    return true
+                end
+            end
+        end
+    end
+
+    if scanTooltip.Hide then scanTooltip:Hide() end
+
+    return false
+end
+
+-- Apply/remove red tint on item texture for unusable items
+local function Guda_ItemButton_UpdateUsableTint(self)
+    -- Only evaluate for live (player) items; DB cached items from other chars cannot be scanned
+    if not self or not self.hasItem or not self.bagID or not self.slotID or self.isReadOnly then
+        -- Clear any tint/overlay on non-live/empty slots
+        if self.unusableOverlay and self.unusableOverlay.Hide then self.unusableOverlay:Hide() end
+        if SetItemButtonTextureVertexColor then SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0) end
+        return
+    end
+
+    local unusable = IsItemUnusable(self.bagID, self.slotID, self.isBank)
+    -- Ensure overlay exists (created in OnLoad, but be defensive)
+    if not self.unusableOverlay then
+        local icon = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
+        local overlay = (icon and icon:GetParent() or self):CreateTexture(nil, "OVERLAY")
+        overlay:SetAllPoints(icon or self)
+        overlay:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+        overlay:Hide()
+        self.unusableOverlay = overlay
+    end
+
+    -- Always reset base icon vertex color to white; we drive the red via overlay to avoid external resets
+    if SetItemButtonTextureVertexColor then SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0) end
+
+    if unusable then
+        local r, g, b, a = Guda_GetUnusableColor()
+        -- Slightly reduce alpha to avoid over-darkening the icon
+        local alpha = (a or 1.0) * 0.45
+        self.unusableOverlay:SetVertexColor(r or 0.9, g or 0.2, b or 0.2, alpha)
+        self.unusableOverlay:Show()
+    else
+        if self.unusableOverlay and self.unusableOverlay.Hide then self.unusableOverlay:Hide() end
+    end
+end
+
+--=====================================================
+-- Global rescanner to keep unusable tint in sync
+--=====================================================
+local function Guda_ItemButton_RescanAllUsableTint()
+    if not buttonPool then return end
+    for _, btn in pairs(buttonPool) do
+        if btn and btn:IsShown() and btn.hasItem and not btn.isReadOnly then
+            if Guda_ItemButton_UpdateUsableTint then
+                Guda_ItemButton_UpdateUsableTint(btn)
+            end
+        end
+    end
+end
+
+-- Event frame to refresh overlays when usability can change
+if not Guda_UnusableTintEventFrame then
+    Guda_UnusableTintEventFrame = CreateFrame("Frame", "Guda_UnusableTintEventFrame")
+    Guda_UnusableTintEventFrame:RegisterEvent("BAG_UPDATE")
+    Guda_UnusableTintEventFrame:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    Guda_UnusableTintEventFrame:RegisterEvent("PLAYER_LEVEL_UP")
+    if GetBuildInfo then
+        -- Some clients expose skill update via this event name
+        Guda_UnusableTintEventFrame:RegisterEvent("SKILL_LINES_CHANGED")
+    end
+    -- Bank related
+    Guda_UnusableTintEventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+    Guda_UnusableTintEventFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
+
+    Guda_UnusableTintEventFrame:SetScript("OnEvent", function()
+        Guda_ItemButton_RescanAllUsableTint()
+    end)
 end
 
 -- Create or get a button from the pool
@@ -251,6 +423,10 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         if not self.isReadOnly and Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(self)
         end
+        -- Update unusable red overlay tint
+        if Guda_ItemButton_UpdateUsableTint then
+			Guda_ItemButton_UpdateUsableTint(self)
+        end
     else
         -- Fully clear all item button state for empty slots
         if SetItemButtonTexture then SetItemButtonTexture(self, nil) end
@@ -272,6 +448,11 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         end
 
         if emptySlotBg then emptySlotBg:Show() end
+
+        -- Ensure any unusable tint is cleared on empty
+        if SetItemButtonTextureVertexColor then
+            SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0)
+        end
     end
 
     -- Resize empty slot background to match icon size (slightly larger to ensure coverage)
@@ -375,7 +556,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             SetItemButtonDesaturated(self, isLocked, 0.5, 0.5, 0.5)
         end
 
-        -- Hide NormalTexture for filled slots (pfUI style)
+        -- Hide NormalTexture for filled slots
         self:SetNormalTexture("")
         local normalBorder = getglobal(self:GetName().."NormalTexture")
         if normalBorder then
@@ -388,7 +569,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             emptySlotBg:SetAlpha(0.3)  -- More subtle for filled slots
         end
 
-        -- Search filtering (pfUI style - ONLY use alpha, no other effects)
+        -- Search filtering
         if matchesFilter then
             -- Matching items: full opacity (1.0)
             self:SetAlpha(1.0)
@@ -405,7 +586,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             countText:Hide()
         end
 
-        -- Set quality border (pfUI style using backdrop border)
+        -- Set quality border
         if self.qualityBorder then
             if bagID == -2 then
                 -- Special border for keyring items (cyan/blue)
@@ -498,18 +679,18 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             emptySlotBg:SetAlpha(0.5)  -- Slightly more visible
         end
 
-        -- Dim empty slots when searching (pfUI style)
+        -- Dim empty slots when searching
         if matchesFilter then
             -- No search active or passes filter: normal opacity
             self:SetAlpha(1.0)
         else
-            -- Search active and doesn't match: very dim (25% like pfUI)
+            -- Search active and doesn't match: very dim
             self:SetAlpha(0.25)
         end
 
         countText:Hide()
 
-        -- Show border for empty keyring slots (pfUI style)
+        -- Show border for empty keyring slots
         if self.qualityBorder then
             if bagID == -2 then
                 self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.5) -- Dimmer cyan for empty slots
@@ -530,7 +711,6 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         self:Show()
     end
 
-    -- Setup icon texture using pfUI's approach (anchor to fill button)
     -- In 1.12.1, ItemButtonTemplate creates an icon named "$parentIconTexture"
     local iconTexture = getglobal(self:GetName().."IconTexture")
     if not iconTexture then
@@ -555,7 +735,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             iconTexture:SetPoint("CENTER", self, "CENTER", -0.5, 0.5)
             iconTexture:SetWidth(iconDisplaySize)
             iconTexture:SetHeight(iconDisplaySize)
-            -- Crop icon edges slightly (pfUI uses .08 to .92)
+            -- Crop icon edges slightly
             iconTexture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             iconTexture:Show()
 
