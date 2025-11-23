@@ -169,35 +169,40 @@ end
 
 -- Apply/remove red tint on item texture for unusable items
 local function Guda_ItemButton_UpdateUsableTint(self)
-    -- Only evaluate for live (player) items; DB cached items from other chars cannot be scanned
-    if not self or not self.hasItem or not self.bagID or not self.slotID or self.isReadOnly then
-        -- Clear any tint/overlay on non-live/empty slots
-        if self.unusableOverlay and self.unusableOverlay.Hide then self.unusableOverlay:Hide() end
-        if SetItemButtonTextureVertexColor then SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0) end
-        return
-    end
+-- Clear any existing tint/overlay first
+	if self.unusableOverlay and self.unusableOverlay.Hide then
+		self.unusableOverlay:Hide()
+	end
+	if SetItemButtonTextureVertexColor then
+		SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0)
+	end
 
-    local unusable = IsItemUnusable(self.bagID, self.slotID, self.isBank)
-    -- Ensure overlay exists (created in OnLoad, but be defensive)
-    if not self.unusableOverlay then
-        local icon = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
-        local overlay = (icon and icon:GetParent() or self):CreateTexture(nil, "OVERLAY")
-        overlay:SetAllPoints(icon or self)
-        overlay:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
-        overlay:Hide()
-        self.unusableOverlay = overlay
-    end
+	-- Only evaluate for live (player) items; DB cached items from other chars cannot be scanned
+	if not self or not self.hasItem or not self.bagID or not self.slotID or self.isReadOnly or self.otherChar then
+		return
+	end
 
-    -- Always reset base icon vertex color to white; we drive the red via overlay to avoid external resets
-    if SetItemButtonTextureVertexColor then SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0) end
+	local unusable = IsItemUnusable(self.bagID, self.slotID, self.isBank)
 
-    if unusable then
-        local r, g, b, a = Guda_GetUnusableColor()
-        -- Slightly reduce alpha to avoid over-darkening the icon
-        local alpha = (a or 1.0) * 0.45
-        self.unusableOverlay:SetVertexColor(r or 0.9, g or 0.2, b or 0.2, alpha)
-        self.unusableOverlay:Show()
-    end
+	-- Ensure overlay exists (created in OnLoad, but be defensive)
+	if not self.unusableOverlay then
+		local icon = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
+		local overlay = (icon and icon:GetParent() or self):CreateTexture(nil, "OVERLAY")
+		overlay:SetAllPoints(icon or self)
+		overlay:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+		overlay:Hide()
+		self.unusableOverlay = overlay
+	end
+
+	if unusable then
+		local r, g, b, a = Guda_GetUnusableColor()
+		-- Slightly reduce alpha to avoid over-darkening the icon
+		local alpha = (a or 1.0) * 0.45
+		self.unusableOverlay:SetVertexColor(r or 0.9, g or 0.2, b or 0.2, alpha)
+		self.unusableOverlay:Show()
+	else
+		self.unusableOverlay:Hide()
+	end
 end
 
 
