@@ -9,6 +9,7 @@ local scanTooltip = CreateFrame("GameTooltip", "Guda_QuestScanTooltip", nil, "Ga
 scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 
 -- Check if an item is a quest item by scanning its tooltip
+-- Check if an item is a quest item by scanning its tooltip and determine type
 local function IsQuestItem(bagID, slotID)
 	if not bagID or not slotID then return false end
 
@@ -16,6 +17,7 @@ local function IsQuestItem(bagID, slotID)
 	scanTooltip:SetBagItem(bagID, slotID)
 
 	local isQuestItem = false
+	local isQuestStarter = false
 
 	-- Check all tooltip lines for quest-related text
 	for i = 1, scanTooltip:NumLines() do
@@ -23,14 +25,18 @@ local function IsQuestItem(bagID, slotID)
 		if line then
 			local text = line:GetText()
 			if text then
-				--addon:Print("text:%s", text or '')
-				-- Check for various quest-related text patterns
-				if string.find(text, "Quest Item") or
-				string.find(text, "Quest Starter") or
-				(string.find(text, "Manual") or string.find(text, "Soulbond")) or
-				string.find(text, "This Item Begins a Quest") then
+			-- Check for quest starter patterns
+				if string.find(text, "Quest Starter") or
+				string.find(text, "This Item Begins a Quest") or
+				string.find(text, "Use: Starts a Quest") then
 					isQuestItem = true
+					isQuestStarter = true
 					break
+				-- Check for regular quest item patterns
+				elseif string.find(text, "Quest Item") or
+				(string.find(text, "Manual") or string.find(text, "Soulbond")) then
+					isQuestItem = true
+				-- Don't break, might still find a quest starter pattern
 				end
 			end
 		end
@@ -43,11 +49,19 @@ local function IsQuestItem(bagID, slotID)
 			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType = GetItemInfo(link)
 			if itemType == "Quest" then
 				isQuestItem = true
+				-- For quest type items, check if they're starters by name/description
+				if itemName and (string.find(itemName, "Note") or
+				string.find(itemName, "Letter") or
+				string.find(itemName, "Orders") or
+				string.find(itemName, "Rune") or
+				string.find(itemName, "Tablet")) then
+					isQuestStarter = true
+				end
 			end
 		end
 	end
 
-	return isQuestItem
+	return isQuestItem, isQuestStarter
 end
 
 --=====================================================
@@ -203,6 +217,26 @@ function Guda_GetItemButton(parent)
     nextButtonID = nextButtonID + 1
 
     return button
+end
+
+-- Update quest icon based on item type (starter vs regular quest item)
+local function Guda_ItemButton_UpdateQuestIcon(self, isQuest, isQuestStarter)
+	if not self.questIcon then return end
+
+	if isQuest then
+	-- Set appropriate texture based on quest type
+		if not isQuestStarter then
+			addon:Print("isQuestSTarter:" .. tostring(isQuestStarter))
+			local texture = self.questIcon:GetRegions()
+			if texture and texture.SetTexture then
+				texture:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon")
+				texture:SetTexCoord(0, 1, 0, 1)
+			end
+		end
+		self.questIcon:Show()
+	else
+		self.questIcon:Hide()
+	end
 end
 
 -- OnLoad handler
@@ -622,7 +656,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
         -- Check for quest items and show golden border + icon (higher priority than quality border)
         -- Only check for current character's items (not other characters or bank in read-only mode)
-        local isQuest = not self.otherChar and not self.isReadOnly and IsQuestItem(bagID, slotID)
+		local isQuest, isQuestStarter = IsQuestItem(bagID, slotID)
 
         if self.questBorder then
             if isQuest then
@@ -639,7 +673,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 self.questIcon:Hide()
             end
         end
-
+		-- Update quest icon with the appropriate texture
+		Guda_ItemButton_UpdateQuestIcon(self, isQuest, isQuestStarter)
         self:Show()
     else
         self.hasItem = false
