@@ -332,10 +332,22 @@ end
 -- Update the Blizzard cooldown overlay on this item button
 function Guda_ItemButton_UpdateCooldown(self)
     -- Only show cooldowns for live items of the current character
-    if not self or self.isReadOnly or self.otherChar then return end
+    if not self then return end
 
     local cooldown = getglobal(self:GetName().."Cooldown") or self.cooldown
     if not cooldown then return end
+
+    -- Ensure cooldown overlay is NOT shown for read-only or other-character views
+    if self.isReadOnly or self.otherChar then
+        -- Clear any previous timer state and hide to avoid carry-over from pooled buttons
+        if CooldownFrame_SetTimer then
+            CooldownFrame_SetTimer(cooldown, 0, 0, 0)
+        elseif CooldownFrame_Set then
+            CooldownFrame_Set(cooldown, 0, 0, 0)
+        end
+        cooldown:Hide()
+        return
+    end
 
     if not self.hasItem or not self.bagID or not self.slotID then
         cooldown:Hide()
@@ -360,6 +372,19 @@ end
 
 -- Set item data
 function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter, isReadOnly)
+    -- Proactively clear any previous cooldown overlay state before reassigning this pooled button
+    do
+        local cd = getglobal(self:GetName().."Cooldown") or self.cooldown
+        if cd then
+            if CooldownFrame_SetTimer then
+                CooldownFrame_SetTimer(cd, 0, 0, 0)
+            elseif CooldownFrame_Set then
+                CooldownFrame_Set(cd, 0, 0, 0)
+            end
+            if cd.Hide then cd:Hide() end
+        end
+    end
+
     self.bagID = bagID
     self.slotID = slotID
     -- Also set the Blizzard slot ID for compatibility with ContainerFrameItemButtonTemplate behavior
@@ -446,8 +471,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         if SetItemButtonCount then SetItemButtonCount(self, displayCount or 1) end
         if emptySlotBg then emptySlotBg:Hide() end
         -- Update cooldown overlay for live items
-        if not self.isReadOnly and Guda_ItemButton_UpdateCooldown then
+        if not self.isReadOnly and not self.otherChar and Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(self)
+        else
+            -- Ensure cooldown is hidden for read-only/other character views
+            local cd = getglobal(self:GetName().."Cooldown") or self.cooldown
+            if cd and cd.Hide then cd:Hide() end
         end
         -- Update unusable red overlay tint
         if Guda_ItemButton_UpdateUsableTint then
