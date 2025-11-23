@@ -935,11 +935,14 @@ function BankFrame:Initialize()
                 -- Show current character's bank in interactive mode
                 currentViewChar = nil
 
-                -- Hide BagFrame to prevent button overlap
-                local bagFrame = getglobal("Guda_BagFrame")
-                if bagFrame and bagFrame:IsShown() then
-                    bagFrame:Hide()
-                end
+                -- Do not auto-hide BagFrame when opening BankFrame
+                -- Previously, we hid BagFrame to prevent button overlap:
+                -- local bagFrame = getglobal("Guda_BagFrame")
+                -- if bagFrame and bagFrame:IsShown() then
+                --     bagFrame:Hide()
+                -- end
+                -- Users may want both frames visible simultaneously; layout issues, if any,
+                -- should be addressed via positioning rather than auto-hiding.
 
                 -- Show and update custom bank frame
                 local customBankFrame = getglobal("Guda_BankFrame")
