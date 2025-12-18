@@ -42,24 +42,28 @@ local function IsQuestItem(bagID, slotID)
 		end
 	end
 
-	-- Also check if the item type is "Quest"
-	if not isQuestItem then
-		local link = GetContainerItemLink(bagID, slotID)
-		if link then
-			local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType = GetItemInfo(link)
-			if itemType == "Quest" then
-				isQuestItem = true
-				-- For quest type items, check if they're starters by name/description
-				if itemName and (string.find(itemName, "Note") or
-				string.find(itemName, "Letter") or
-				string.find(itemName, "Orders") or
-				string.find(itemName, "Rune") or
-				string.find(itemName, "Tablet")) then
-					isQuestStarter = true
-				end
-			end
-		end
-	end
+ -- Also check item category/type via GetItemInfo for "Quest"
+ -- Turtle WoW GetItemInfo returns: name, link, rarity, level, itemCategory, itemType, stack, subType, texture, equipLoc, sellPrice
+ if not isQuestItem then
+     local link = GetContainerItemLink(bagID, slotID)
+     if link and addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID and addon.Modules.Utils.GetItemInfoSafe then
+         local itemID = addon.Modules.Utils:ExtractItemID(link)
+         if itemID then
+             local itemName, _, _, _, itemCategory, itemType = addon.Modules.Utils:GetItemInfoSafe(itemID)
+             if itemCategory == "Quest" or itemType == "Quest" then
+                 isQuestItem = true
+                 -- For quest items, try a light heuristic to flag starters by name
+                 if itemName and (string.find(itemName, "Note") or
+                     string.find(itemName, "Letter") or
+                     string.find(itemName, "Orders") or
+                     string.find(itemName, "Rune") or
+                     string.find(itemName, "Tablet")) then
+                     isQuestStarter = true
+                 end
+             end
+         end
+     end
+ end
 
 	return isQuestItem, isQuestStarter
 end
@@ -879,28 +883,28 @@ function Guda_ItemButton_OnEnter(self)
 
 	-- Debug: print hovered item's texture path to chat
 	-- Uses GetItemInfo on the hovered item's ID
-	--if self.hasItem then
-	--	local link = nil
-	--	if self.itemData and self.itemData.link then
-	--		link = self.itemData.link
-	--	else
-	--		-- Fallback to live bag query
-	--		link = GetContainerItemLink(self.bagID, self.slotID)
-	--	end
-	--	if link and addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID then
-	--		local itemID = addon.Modules.Utils:ExtractItemID(link)
-	--		if itemID and addon.Modules.Utils.GetItemInfoSafe then
-	--			local name, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount,
-	--				itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfoSafe(itemID)
-	--			if addon and addon.Print then
-	--				addon:Print("itemTexture: %s", tostring(itemTexture))
-	--				addon:Print("itemCategory: %s", tostring(itemCategory))
-	--				addon:Print("itemType: %s", tostring(itemType))
-	--				addon:Print("itemType: %s", tostring(itemType))
-	--			end
-	--		end
-	--	end
-	--end
+	if self.hasItem then
+		local link = nil
+		if self.itemData and self.itemData.link then
+			link = self.itemData.link
+		else
+			-- Fallback to live bag query
+			link = GetContainerItemLink(self.bagID, self.slotID)
+		end
+		if link and addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID then
+			local itemID = addon.Modules.Utils:ExtractItemID(link)
+			if itemID and addon.Modules.Utils.GetItemInfoSafe then
+				local name, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount,
+					itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfoSafe(itemID)
+				if addon and addon.Print then
+					addon:Print("itemTexture: %s", tostring(itemTexture))
+					addon:Print("itemCategory: %s", tostring(itemCategory))
+					addon:Print("itemType: %s", tostring(itemType))
+					addon:Print("itemType: %s", tostring(itemType))
+				end
+			end
+		end
+	end
 	-- Handle merchant sell cursor (same approach as BagShui)
 	if MerchantFrame:IsShown() and not self.isBank and not self.otherChar and self.hasItem then
 		ShowContainerSellCursor(self.bagID, self.slotID)

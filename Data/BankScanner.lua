@@ -91,6 +91,11 @@ function BankScanner:Initialize()
 
     -- Bank closed
     addon.Modules.Events:OnBankClose(function()
+        -- Do a final save on close before marking bank as closed
+        -- so that any last changes are captured.
+        addon:Debug("Bank closing - performing final save")
+        BankScanner:SaveToDatabase()
+
         bankOpen = false
         addon:Debug("Bank closed")
     end, "BankScanner")
