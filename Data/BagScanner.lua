@@ -24,14 +24,7 @@ end
 -- Scan a single bag
 function BagScanner:ScanBag(bagID)
     -- Determine bag type
-    local bagType = "regular"
-    if addon.Modules.Utils:IsSoulBag(bagID) then
-        bagType = "soul"
-    elseif addon.Modules.Utils:IsHerbBag(bagID) then
-        bagType = "herb"
-    elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
-        bagType = "ammo"
-    end
+    local bagType = addon.Modules.Utils:GetSpecializedBagType(bagID) or "regular"
 
     local bag = {
         slots = {},

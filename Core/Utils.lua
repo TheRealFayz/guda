@@ -323,8 +323,7 @@ function Utils:IsSoulBag(bagID)
     return false
 end
 
--- Get specialized bag type (for sorting priority)
--- Returns: "soul", "herb", "quiver", "ammo", or nil
+-- Returns: "soul", "herb", "enchant", "quiver", "ammo", or nil
 function Utils:GetSpecializedBagType(bagID)
     -- Skip backpack, bank, and keyring
     if bagID == 0 or bagID == -1 or bagID == -2 then
@@ -362,6 +361,11 @@ function Utils:GetSpecializedBagType(bagID)
             return "herb"
         end
 
+        -- Enchanting Bag
+        if string.find(typeLower, "enchanting bag") then
+            return "enchant"
+        end
+
         -- Quiver
         if string.find(typeLower, "quiver") then
             return "quiver"
@@ -379,10 +383,12 @@ end
 -- Get container priority for sorting (higher = more important)
 function Utils:GetContainerPriority(bagID)
     local bagType = self:GetSpecializedBagType(bagID)
-    if bagType == "soul" then
-        return 40
+    if bagType == "enchant" then
+        return 50
     elseif bagType == "herb" then
-        return 35
+        return 45
+    elseif bagType == "soul" then
+        return 40
     elseif bagType == "quiver" then
         return 30
     elseif bagType == "ammo" then
@@ -423,7 +429,7 @@ function Utils:IsAmmo(itemType)
 end
 
 -- Get preferred container type for an item
--- Returns: "soul", "herb", "quiver", "ammo", or nil
+-- Returns: "soul", "herb", "enchant", "quiver", "ammo", or nil
 function Utils:GetItemPreferredContainer(itemLink)
     if not itemLink then return nil end
 
@@ -451,6 +457,11 @@ function Utils:GetItemPreferredContainer(itemLink)
     -- Route herbs to herb bags (robust: category/subtype OR texture pattern fallback)
     if self:IsHerbItem(itemLink) then
         return "herb"
+    end
+
+    -- Route enchanting materials to enchanting bags
+    if self:IsEnchantingItem(itemLink) then
+        return "enchant"
     end
 
     return nil
@@ -508,6 +519,80 @@ function Utils:IsHerbItem(itemLink)
 
     if string.find(tex, "inv_misc_herb") or string.find(tex, "misc_herb") then
         return true
+    end
+
+    return false
+end
+
+-- Determine if an item is an enchanting material (for routing to enchanting bags)
+-- Rules:
+--   1) itemCategory == "Trade Goods"
+--   2) (itemSubType == "Enchanting") OR texture contains "INV_Enchant" (case-insensitive)
+function Utils:IsEnchantingItem(itemLink)
+    if not itemLink then return false end
+
+    local itemID = self:ExtractItemID(itemLink)
+    if not itemID then return false end
+
+    local name, _, quality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture = self:GetItemInfoSafe(itemID)
+
+    if itemCategory ~= "Trade Goods" then
+        -- Some private servers may report Enchanting directly as type
+        if itemType ~= "Enchanting" and itemSubType ~= "Enchanting" then
+            return false
+        end
+    end
+
+    -- If explicit Enchanting subtype/type, accept immediately
+    if itemType == "Enchanting" or itemSubType == "Enchanting" then
+        return true
+    end
+
+    if not itemTexture then
+        return false
+    end
+
+    -- Normalize and check texture name
+    local tex = string.lower(itemTexture)
+    tex = string.gsub(tex, "^interface\\\\icons\\\\", "")
+
+    if string.find(tex, "inv_enchant") or string.find(tex, "enchant") then
+        return true
+    end
+
+    return false
+end
+
+-- Check if a bag is Enchanting Bag (parallel to IsHerbBag)
+function Utils:IsEnchantBag(bagID)
+    -- Skip backpack, bank, and keyring
+    if bagID == 0 or bagID == -1 or bagID == -2 then
+        return false
+    end
+
+    local invSlot = ContainerIDToInventoryID(bagID)
+    if not invSlot then return false end
+
+    local link = GetInventoryItemLink("player", invSlot)
+    if not link then return false end
+
+    -- Prefer specialized type detection
+    local bagType = self:GetSpecializedBagType(bagID)
+    if bagType == "enchant" then return true end
+
+    -- Fallback: tooltip scan for "Enchanting Bag"
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetInventoryItem("player", invSlot)
+
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text and string.find(string.lower(text), "enchanting bag") then
+                return true
+            end
+        end
     end
 
     return false

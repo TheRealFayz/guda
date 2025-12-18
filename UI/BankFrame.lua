@@ -196,11 +196,13 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bankColumns") or 10
     local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
 
-    -- Separate bank bags into regular, soul, herb, and ammo/quiver types
+    -- Separate bank bags into regular, enchant, herb, soul, quiver, and ammo types
     local regularBags = {}
-    local soulBags = {}
+    local enchantBags = {}
     local herbBags = {}
-    local ammoQuiverBags = {}
+    local soulBags = {}
+    local quiverBags = {}
+    local ammoBags = {}
 
     for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
         if not hiddenBankBags[bagID] then
@@ -210,37 +212,33 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 local bagSaved = bankData and bankData[bagID]
                 bagType = bagSaved and bagSaved.bagType or "regular"
             else
-                -- Live detection for current character when bank is open
-                if addon.Modules.Utils:IsSoulBag(bagID) then
-                    bagType = "soul"
-                elseif addon.Modules.Utils:IsHerbBag(bagID) then
-                    bagType = "herb"
-                elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
-                    bagType = "ammo"
-                else
-                    bagType = "regular"
-                end
+                -- Unified live detection for current character when bank is open
+                bagType = addon.Modules.Utils:GetSpecializedBagType(bagID) or "regular"
             end
 
-            if bagType == "soul" then
-                table.insert(soulBags, bagID)
+            if bagType == "enchant" then
+                table.insert(enchantBags, bagID)
             elseif bagType == "herb" then
                 table.insert(herbBags, bagID)
+            elseif bagType == "soul" then
+                table.insert(soulBags, bagID)
+            elseif bagType == "quiver" then
+                table.insert(quiverBags, bagID)
             elseif bagType == "ammo" then
-                table.insert(ammoQuiverBags, bagID)
+                table.insert(ammoBags, bagID)
             else
                 table.insert(regularBags, bagID)
             end
         end
     end
 
-    -- Build display order: regular -> soul -> herb -> ammo/quiver
+    -- Build display order: regular -> enchant -> herb -> soul -> quiver -> ammo
     local bagsToShow = {}
     for _, bagID in ipairs(regularBags) do
         table.insert(bagsToShow, { bagID = bagID, needsSpacing = false })
     end
-    if table.getn(soulBags) > 0 then
-        for i, bagID in ipairs(soulBags) do
+    if table.getn(enchantBags) > 0 then
+        for i, bagID in ipairs(enchantBags) do
             table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
         end
     end
@@ -249,8 +247,18 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
             table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
         end
     end
-    if table.getn(ammoQuiverBags) > 0 then
-        for i, bagID in ipairs(ammoQuiverBags) do
+    if table.getn(soulBags) > 0 then
+        for i, bagID in ipairs(soulBags) do
+            table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
+        end
+    end
+    if table.getn(quiverBags) > 0 then
+        for i, bagID in ipairs(quiverBags) do
+            table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
+        end
+    end
+    if table.getn(ammoBags) > 0 then
+        for i, bagID in ipairs(ammoBags) do
             table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
         end
     end

@@ -175,6 +175,7 @@ local function DetectSpecializedBags(bagIDs)
     local containers = {
         soul = {},
         herb = {},
+        enchant = {},
         quiver = {},
         ammo = {},
         regular = {}
@@ -186,6 +187,8 @@ local function DetectSpecializedBags(bagIDs)
             table.insert(containers.soul, bagID)
         elseif bagType == "herb" then
             table.insert(containers.herb, bagID)
+        elseif bagType == "enchant" then
+            table.insert(containers.enchant, bagID)
         elseif bagType == "quiver" then
             table.insert(containers.quiver, bagID)
         elseif bagType == "ammo" then
@@ -753,7 +756,7 @@ function SortEngine:AnalyzeContainer(bagIDs, containerType)
 	local totalItems = 0
 
  -- Analyze specialized bags separately
- for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+ for _, bagType in ipairs({"enchant", "herb", "soul", "quiver", "ammo"}) do
      local specialBags = containers[bagType]
      for _, bagID in ipairs(specialBags) do
          local items = CollectItems({bagID})
@@ -873,9 +876,9 @@ function SortEngine:SortBagsPass()
     -- Phase 3: Consolidate stacks in ALL bags (including specialized)
     local consolidateCount = ConsolidateStacks(bagIDs)
 
-    -- Phase 4: Sort items WITHIN each specialized bag (soul, herb, quiver, ammo)
+    -- Phase 4: Sort items WITHIN each specialized bag (enchant, herb, soul, quiver, ammo)
     local specializedMoves = 0
-    for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+    for _, bagType in ipairs({"enchant", "herb", "soul", "quiver", "ammo"}) do
         local specialBags = containers[bagType]
         for _, bagID in ipairs(specialBags) do
             local items = CollectItems({bagID})
@@ -927,9 +930,9 @@ function SortEngine:SortBags()
 	-- Phase 3: Consolidate stacks in ALL bags (including specialized)
 	local consolidateCount = ConsolidateStacks(bagIDs)
 
- -- Phase 4: Sort items WITHIN each specialized bag (soul, herb, quiver, ammo)
+ -- Phase 4: Sort items WITHIN each specialized bag (enchant, herb, soul, quiver, ammo)
  local specializedMoves = 0
- for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+ for _, bagType in ipairs({"enchant", "herb", "soul", "quiver", "ammo"}) do
      local specialBags = containers[bagType]
      for _, bagID in ipairs(specialBags) do
      -- Sort items within this single specialized bag
@@ -1000,7 +1003,7 @@ function SortEngine:SortBankPass()
 
     -- Phase 4: Sort items WITHIN each specialized bag (single pass)
     local specializedMoves = 0
-    for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+    for _, bagType in ipairs({"enchant", "herb", "soul", "quiver", "ammo"}) do
         local specialBags = containers[bagType]
         for _, bagID in ipairs(specialBags) do
             local items = CollectItems({bagID})
@@ -1056,7 +1059,7 @@ function SortEngine:SortBank()
 
  -- Phase 4: Sort items WITHIN each specialized bag (multi-pass to avoid mid-bag holes)
  local specializedMoves = 0
- for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+ for _, bagType in ipairs({"enchant", "herb", "soul", "quiver", "ammo"}) do
      local specialBags = containers[bagType]
      for _, bagID in ipairs(specialBags) do
          local maxPasses = 4

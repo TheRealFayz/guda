@@ -236,68 +236,76 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 	local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
 	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
- -- Separate bags into regular, soul, herb, and ammo/quiver types
+ -- Separate bags into regular, enchant, herb, soul, quiver, and ammo types
  local regularBags = {}
- local soulBags = {}
+ local enchantBags = {}
  local herbBags = {}
- local ammoQuiverBags = {}
+ local soulBags = {}
+ local quiverBags = {}
+ local ammoBags = {}
 
 	for _, bagID in ipairs(addon.Constants.BAGS) do
 	-- Skip hidden bags
 		if not hiddenBags[bagID] then
-			local bagType
-			if isOtherChar then
-			-- For other characters, use saved bag type
-				local bag = bagData[bagID]
-				bagType = bag and bag.bagType or "regular"
-			else
-			-- For current character, detect bag type in real-time
-                if addon.Modules.Utils:IsSoulBag(bagID) then
-                    bagType = "soul"
-                elseif addon.Modules.Utils:IsHerbBag(bagID) then
-                    bagType = "herb"
-                elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
-                    bagType = "ammo"
-                else
-                    bagType = "regular"
-                end
+            local bagType
+            if isOtherChar then
+                -- For other characters, use saved bag type
+                local bag = bagData[bagID]
+                bagType = bag and bag.bagType or "regular"
+            else
+                -- For current character, detect bag type in real-time using unified detector
+                bagType = addon.Modules.Utils:GetSpecializedBagType(bagID) or "regular"
             end
 
-            if bagType == "soul" then
-                table.insert(soulBags, bagID)
+            if bagType == "enchant" then
+                table.insert(enchantBags, bagID)
             elseif bagType == "herb" then
                 table.insert(herbBags, bagID)
+            elseif bagType == "soul" then
+                table.insert(soulBags, bagID)
+            elseif bagType == "quiver" then
+                table.insert(quiverBags, bagID)
             elseif bagType == "ammo" then
-                table.insert(ammoQuiverBags, bagID)
+                table.insert(ammoBags, bagID)
             else
                 table.insert(regularBags, bagID)
             end
         end
     end
 
-    -- Build display order: regular bags -> soul bags -> herb bags -> ammo/quiver bags -> keyring
+    -- Build display order: regular -> enchant -> herb -> soul -> quiver -> ammo -> keyring
     local bagsToShow = {}
     for _, bagID in ipairs(regularBags) do
         table.insert(bagsToShow, {bagID = bagID, needsSpacing = false})
     end
 
-	-- Add soul bags with spacing marker
- if table.getn(soulBags) > 0 then
-        for i, bagID in ipairs(soulBags) do
+    -- Enchant
+    if table.getn(enchantBags) > 0 then
+        for i, bagID in ipairs(enchantBags) do
             table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
         end
     end
-
-    -- Add herb bags with spacing marker
+    -- Herb
     if table.getn(herbBags) > 0 then
         for i, bagID in ipairs(herbBags) do
             table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
         end
     end
-
-    -- Add ammo/quiver bags with spacing marker
-    if table.getn(ammoQuiverBags) > 0 then
-        for i, bagID in ipairs(ammoQuiverBags) do
+    -- Soul
+    if table.getn(soulBags) > 0 then
+        for i, bagID in ipairs(soulBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
+    end
+    -- Quiver
+    if table.getn(quiverBags) > 0 then
+        for i, bagID in ipairs(quiverBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
+    end
+    -- Ammo
+    if table.getn(ammoBags) > 0 then
+        for i, bagID in ipairs(ammoBags) do
             table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
         end
     end
@@ -311,7 +319,7 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 		local bagID = bagInfo.bagID
 		local bag = bagData[bagID]
 
-  -- Add spacing before soul, herb, ammo/quiver, or keyring sections
+  -- Add spacing before enchant, herb, soul, quiver, ammo, or keyring sections
   if bagInfo.needsSpacing then
 			if col > 0 then
 			-- Move to next row if not at start of row
