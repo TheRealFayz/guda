@@ -236,10 +236,11 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 	local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
 	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
-	-- Separate bags into regular, soul, and ammo/quiver types
-	local regularBags = {}
-	local soulBags = {}
-	local ammoQuiverBags = {}
+ -- Separate bags into regular, soul, herb, and ammo/quiver types
+ local regularBags = {}
+ local soulBags = {}
+ local herbBags = {}
+ local ammoQuiverBags = {}
 
 	for _, bagID in ipairs(addon.Constants.BAGS) do
 	-- Skip hidden bags
@@ -251,44 +252,55 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 				bagType = bag and bag.bagType or "regular"
 			else
 			-- For current character, detect bag type in real-time
-				if addon.Modules.Utils:IsSoulBag(bagID) then
-					bagType = "soul"
-				elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
-					bagType = "ammo"
-				else
-					bagType = "regular"
-				end
-			end
+                if addon.Modules.Utils:IsSoulBag(bagID) then
+                    bagType = "soul"
+                elseif addon.Modules.Utils:IsHerbBag(bagID) then
+                    bagType = "herb"
+                elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
+                    bagType = "ammo"
+                else
+                    bagType = "regular"
+                end
+            end
 
-			if bagType == "soul" then
-				table.insert(soulBags, bagID)
-			elseif bagType == "ammo" then
-				table.insert(ammoQuiverBags, bagID)
-			else
-				table.insert(regularBags, bagID)
-			end
-		end
-	end
+            if bagType == "soul" then
+                table.insert(soulBags, bagID)
+            elseif bagType == "herb" then
+                table.insert(herbBags, bagID)
+            elseif bagType == "ammo" then
+                table.insert(ammoQuiverBags, bagID)
+            else
+                table.insert(regularBags, bagID)
+            end
+        end
+    end
 
-	-- Build display order: regular bags -> soul bags -> ammo/quiver bags -> keyring
-	local bagsToShow = {}
-	for _, bagID in ipairs(regularBags) do
-		table.insert(bagsToShow, {bagID = bagID, needsSpacing = false})
-	end
+    -- Build display order: regular bags -> soul bags -> herb bags -> ammo/quiver bags -> keyring
+    local bagsToShow = {}
+    for _, bagID in ipairs(regularBags) do
+        table.insert(bagsToShow, {bagID = bagID, needsSpacing = false})
+    end
 
 	-- Add soul bags with spacing marker
-	if table.getn(soulBags) > 0 then
-		for i, bagID in ipairs(soulBags) do
-			table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
-		end
-	end
+ if table.getn(soulBags) > 0 then
+        for i, bagID in ipairs(soulBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
+    end
 
-	-- Add ammo/quiver bags with spacing marker
-	if table.getn(ammoQuiverBags) > 0 then
-		for i, bagID in ipairs(ammoQuiverBags) do
-			table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
-		end
-	end
+    -- Add herb bags with spacing marker
+    if table.getn(herbBags) > 0 then
+        for i, bagID in ipairs(herbBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
+    end
+
+    -- Add ammo/quiver bags with spacing marker
+    if table.getn(ammoQuiverBags) > 0 then
+        for i, bagID in ipairs(ammoQuiverBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
+    end
 
 	-- Add keyring at the end if toggled on and not hidden
 	if showKeyring and not hiddenBags[-2] then
@@ -299,8 +311,8 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 		local bagID = bagInfo.bagID
 		local bag = bagData[bagID]
 
-		-- Add spacing before soul, ammo/quiver, or keyring sections
-		if bagInfo.needsSpacing then
+  -- Add spacing before soul, herb, ammo/quiver, or keyring sections
+  if bagInfo.needsSpacing then
 			if col > 0 then
 			-- Move to next row if not at start of row
 				col = 0
@@ -1167,12 +1179,12 @@ function Guda_BagFrame_Sort()
 		return
 	end
 
-	local success, message = addon.Modules.SortEngine:ExecuteSort(
-		function() return addon.Modules.SortEngine:SortBags() end,
-		function() return addon.Modules.SortEngine:AnalyzeBags() end,
-		function() BagFrame:Update() end,
-		"bags"
-	)
+ local success, message = addon.Modules.SortEngine:ExecuteSort(
+        function() return addon.Modules.SortEngine:SortBagsPass() end,
+        function() return addon.Modules.SortEngine:AnalyzeBags() end,
+        function() BagFrame:Update() end,
+        "bags"
+    )
 
 	if not success and message == "already sorted" then
 		addon:Print("Bags are already sorted!")

@@ -172,25 +172,28 @@ end
 --===========================================================================
 
 local function DetectSpecializedBags(bagIDs)
-	local containers = {
-		soul = {},
-		quiver = {},
-		ammo = {},
-		regular = {}
-	}
+    local containers = {
+        soul = {},
+        herb = {},
+        quiver = {},
+        ammo = {},
+        regular = {}
+    }
 
 	for _, bagID in ipairs(bagIDs) do
 		local bagType = addon.Modules.Utils:GetSpecializedBagType(bagID)
-		if bagType == "soul" then
-			table.insert(containers.soul, bagID)
-		elseif bagType == "quiver" then
-			table.insert(containers.quiver, bagID)
-		elseif bagType == "ammo" then
-			table.insert(containers.ammo, bagID)
-		else
-			table.insert(containers.regular, bagID)
-		end
-	end
+        if bagType == "soul" then
+            table.insert(containers.soul, bagID)
+        elseif bagType == "herb" then
+            table.insert(containers.herb, bagID)
+        elseif bagType == "quiver" then
+            table.insert(containers.quiver, bagID)
+        elseif bagType == "ammo" then
+            table.insert(containers.ammo, bagID)
+        else
+            table.insert(containers.regular, bagID)
+        end
+    end
 
 	return containers
 end
@@ -749,13 +752,13 @@ function SortEngine:AnalyzeContainer(bagIDs, containerType)
 	local totalOutOfPlace = 0
 	local totalItems = 0
 
-	-- Analyze specialized bags separately
-	for _, bagType in ipairs({"soul", "quiver", "ammo"}) do
-		local specialBags = containers[bagType]
-		for _, bagID in ipairs(specialBags) do
-			local items = CollectItems({bagID})
-			if table.getn(items) > 0 then
-				local sortedItems = SortItems(items)
+ -- Analyze specialized bags separately
+ for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+     local specialBags = containers[bagType]
+     for _, bagID in ipairs(specialBags) do
+         local items = CollectItems({bagID})
+         if table.getn(items) > 0 then
+             local sortedItems = SortItems(items)
 				local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
 
 				for i, item in ipairs(sortedItems) do
@@ -827,23 +830,27 @@ function SortEngine:AnalyzeContainer(bagIDs, containerType)
 		end
 	end
 
-	if totalOutOfPlace == 0 then
-		return {passes = 0, itemsOutOfPlace = 0, totalItems = totalItems, alreadySorted = true}
-	end
+ if totalOutOfPlace == 0 then
+        return {passes = 0, itemsOutOfPlace = 0, totalItems = totalItems, alreadySorted = true}
+    end
 
-	-- Estimate passes (same logic as before)
-	local displacementRatio = totalOutOfPlace / math.max(1, totalItems)
-	local estimatedPasses
+    -- Estimate passes (aligned to single-pass executor; cap at 6)
+    local displacementRatio = totalOutOfPlace / math.max(1, totalItems)
+    local estimatedPasses
 
-	if displacementRatio < 0.1 then
-		estimatedPasses = 1
-	elseif displacementRatio < 0.3 then
-		estimatedPasses = 2
-	elseif displacementRatio < 0.5 then
-		estimatedPasses = 3
-	else
-		estimatedPasses = 4
-	end
+    if displacementRatio < 0.10 then
+        estimatedPasses = 1
+    elseif displacementRatio < 0.30 then
+        estimatedPasses = 2
+    elseif displacementRatio < 0.50 then
+        estimatedPasses = 3
+    elseif displacementRatio < 0.70 then
+        estimatedPasses = 4
+    elseif displacementRatio < 0.85 then
+        estimatedPasses = 5
+    else
+        estimatedPasses = 6
+    end
 
 	return {
 		passes = estimatedPasses,
@@ -851,6 +858,61 @@ function SortEngine:AnalyzeContainer(bagIDs, containerType)
 		totalItems = totalItems,
 		alreadySorted = false
 	}
+end
+
+-- Execute exactly ONE full sorting pass over bags (used by safety wrapper)
+function SortEngine:SortBagsPass()
+    local bagIDs = addon.Constants.BAGS
+
+    -- Phase 1: Detect specialized bags
+    local containers = DetectSpecializedBags(bagIDs)
+
+    -- Phase 2: Route specialized items to their bags
+    local routeCount = RouteSpecializedItems(bagIDs, containers)
+
+    -- Phase 3: Consolidate stacks in ALL bags (including specialized)
+    local consolidateCount = ConsolidateStacks(bagIDs)
+
+    -- Phase 4: Sort items WITHIN each specialized bag (soul, herb, quiver, ammo)
+    local specializedMoves = 0
+    for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+        local specialBags = containers[bagType]
+        for _, bagID in ipairs(specialBags) do
+            local items = CollectItems({bagID})
+            if table.getn(items) > 0 then
+                items = SortItems(items)
+                local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
+                local moveCount = ApplySort({bagID}, items, targetPositions)
+                specializedMoves = specializedMoves + moveCount
+            end
+        end
+    end
+
+    -- Phase 5: Two-phase sort for regular bags in a single pass
+    local regularMoves = 0
+    local regularBagIDs = containers.regular
+    if table.getn(regularBagIDs) > 0 then
+        -- Re-collect current state from regular bags
+        local allItems = CollectItems(regularBagIDs)
+        local nonGreys, greys = SplitGreyItems(allItems)
+
+        -- 1) Non-greys: standard sort to the front positions only
+        if table.getn(nonGreys) > 0 then
+            local sortedNonGreys = SortItems(nonGreys)
+            local frontPositions = BuildTargetPositions(regularBagIDs, table.getn(sortedNonGreys))
+            regularMoves = regularMoves + (ApplySort(regularBagIDs, sortedNonGreys, frontPositions) or 0)
+        end
+
+        -- 2) Greys: end->start across bags
+        local afterItems = CollectItems(regularBagIDs)
+        local _, greysNow = SplitGreyItems(afterItems)
+        if table.getn(greysNow) > 0 then
+            local tailPositions = BuildGreyTailPositions(regularBagIDs, table.getn(greysNow))
+            regularMoves = regularMoves + (ApplySort(regularBagIDs, greysNow, tailPositions) or 0)
+        end
+    end
+
+    return routeCount + consolidateCount + specializedMoves + regularMoves
 end
 
 function SortEngine:SortBags()
@@ -865,14 +927,14 @@ function SortEngine:SortBags()
 	-- Phase 3: Consolidate stacks in ALL bags (including specialized)
 	local consolidateCount = ConsolidateStacks(bagIDs)
 
-	-- Phase 4: Sort items WITHIN each specialized bag (soul, quiver, ammo)
-	local specializedMoves = 0
-	for _, bagType in ipairs({"soul", "quiver", "ammo"}) do
-		local specialBags = containers[bagType]
-		for _, bagID in ipairs(specialBags) do
-		-- Sort items within this single specialized bag
-			local items = CollectItems({bagID})
-			if table.getn(items) > 0 then
+ -- Phase 4: Sort items WITHIN each specialized bag (soul, herb, quiver, ammo)
+ local specializedMoves = 0
+ for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+     local specialBags = containers[bagType]
+     for _, bagID in ipairs(specialBags) do
+     -- Sort items within this single specialized bag
+         local items = CollectItems({bagID})
+         if table.getn(items) > 0 then
 				items = SortItems(items)
 				local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
 				local moveCount = ApplySort({bagID}, items, targetPositions)
@@ -881,9 +943,7 @@ function SortEngine:SortBags()
 		end
 	end
 
- -- Phase 5: Two-phase sort for regular bags:
- --   1) Sort non-grey items normally across all regular bags (front-compaction)
- --   2) Pack grey items (quality 0) at the end tail (last bag backwards), spilling into previous bags.
+ -- Phase 5: Two-phase sort for regular bags (multi-pass legacy; kept for direct calls)
  local regularMoves = 0
  local regularBagIDs = containers.regular
  if table.getn(regularBagIDs) > 0 then
@@ -920,6 +980,63 @@ function SortEngine:SortBags()
 	return routeCount + consolidateCount + specializedMoves + regularMoves
 end
 
+-- Execute exactly ONE full sorting pass over bank (used by safety wrapper)
+function SortEngine:SortBankPass()
+    if not addon.Modules.BankScanner:IsBankOpen() then
+        addon:Print("Bank must be open to sort!")
+        return 0
+    end
+
+    local bagIDs = addon.Constants.BANK_BAGS
+
+    -- Phase 1: Detect specialized bags
+    local containers = DetectSpecializedBags(bagIDs)
+
+    -- Phase 2: Route specialized items
+    local routeCount = RouteSpecializedItems(bagIDs, containers)
+
+    -- Phase 3: Consolidate stacks
+    local consolidateCount = ConsolidateStacks(bagIDs)
+
+    -- Phase 4: Sort items WITHIN each specialized bag (single pass)
+    local specializedMoves = 0
+    for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+        local specialBags = containers[bagType]
+        for _, bagID in ipairs(specialBags) do
+            local items = CollectItems({bagID})
+            if table.getn(items) > 0 then
+                items = SortItems(items)
+                local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
+                local moved = ApplySort({bagID}, items, targetPositions)
+                specializedMoves = specializedMoves + moved
+            end
+        end
+    end
+
+    -- Phase 5: Regular bank bags — single pass
+    local regularBagIDs = containers.regular
+    local regularMoves = 0
+    if table.getn(regularBagIDs) > 0 then
+        local allItems = CollectItems(regularBagIDs)
+        local nonGreys, greys = SplitGreyItems(allItems)
+
+        if table.getn(nonGreys) > 0 then
+            local sortedNonGreys = SortItems(nonGreys)
+            local frontPositions = BuildTargetPositions(regularBagIDs, table.getn(sortedNonGreys))
+            regularMoves = regularMoves + (ApplySort(regularBagIDs, sortedNonGreys, frontPositions) or 0)
+        end
+
+        local afterItems = CollectItems(regularBagIDs)
+        local _, greysNow = SplitGreyItems(afterItems)
+        if table.getn(greysNow) > 0 then
+            local tailPositions = BuildGreyTailPositions(regularBagIDs, table.getn(greysNow))
+            regularMoves = regularMoves + (ApplySort(regularBagIDs, greysNow, tailPositions) or 0)
+        end
+    end
+
+    return routeCount + consolidateCount + specializedMoves + regularMoves
+end
+
 function SortEngine:SortBank()
 	if not addon.Modules.BankScanner:IsBankOpen() then
 		addon:Print("Bank must be open to sort!")
@@ -937,23 +1054,23 @@ function SortEngine:SortBank()
 	-- Phase 3: Consolidate stacks
 	local consolidateCount = ConsolidateStacks(bagIDs)
 
-	-- Phase 4: Sort items WITHIN each specialized bag (multi-pass to avoid mid-bag holes)
-	local specializedMoves = 0
-	for _, bagType in ipairs({"soul", "quiver", "ammo"}) do
-		local specialBags = containers[bagType]
-		for _, bagID in ipairs(specialBags) do
-			local maxPasses = 4
-			for pass = 1, maxPasses do
-				local items = CollectItems({bagID})
-				if table.getn(items) == 0 then break end
-				items = SortItems(items)
-				local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
-				local moved = ApplySort({bagID}, items, targetPositions)
-				specializedMoves = specializedMoves + moved
-				if moved == 0 then break end
-			end
-		end
-	end
+ -- Phase 4: Sort items WITHIN each specialized bag (multi-pass to avoid mid-bag holes)
+ local specializedMoves = 0
+ for _, bagType in ipairs({"soul", "herb", "quiver", "ammo"}) do
+     local specialBags = containers[bagType]
+     for _, bagID in ipairs(specialBags) do
+         local maxPasses = 4
+         for pass = 1, maxPasses do
+             local items = CollectItems({bagID})
+             if table.getn(items) == 0 then break end
+             items = SortItems(items)
+             local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
+             local moved = ApplySort({bagID}, items, targetPositions)
+             specializedMoves = specializedMoves + moved
+             if moved == 0 then break end
+         end
+     end
+ end
 
  -- Phase 5: Regular bank bags — same two-phase approach (non-greys first, greys to tail)
  local regularBagIDs = containers.regular
@@ -1005,26 +1122,27 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 	addon:Print("Sorting %s... (%d/%d items need sorting, estimated %d passes)",
 		sortType, analysis.itemsOutOfPlace, analysis.totalItems, analysis.passes)
 
-	local passCount = 0
-	local maxPasses = math.max(analysis.passes, 1)  -- Use estimated passes, minimum 1
-	local safetyLimit = math.max(maxPasses * 2, 6)  -- Reasonable upper bound
-	local totalMoves = 0
+ local passCount = 0
+ local maxPasses = math.max(analysis.passes, 1)  -- Use estimated passes, minimum 1
+ local safetyLimit = math.max(maxPasses * 2, 6)  -- Reasonable upper bound
+ local totalMoves = 0
+ local noProgressPasses = 0
 
 	addon:Print("Starting %s sort (estimated: %d passes, safety limit: %d)", sortType, maxPasses, safetyLimit)
 
 	local function DoSortPass()
 		passCount = passCount + 1
 
-		-- Perform one sort pass
-		local moveCount = sortFunction()
-		totalMoves = totalMoves + moveCount
+  -- Perform one sort pass
+  local moveCount = sortFunction()
+  totalMoves = totalMoves + moveCount
 
 		-- Check if sorting is complete by re-analyzing
 		local currentAnalysis = analyzeFunction()
 
-		if currentAnalysis.alreadySorted then
-		-- Sorting is complete!
-			addon:Print("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
+  if currentAnalysis.alreadySorted then
+            -- Sorting is complete!
+            addon:Print("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
 
 			-- Final update
 			local frame = CreateFrame("Frame")
@@ -1035,10 +1153,10 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 					updateFrame()
 				end
 			end)
-		elseif passCount >= safetyLimit then
-		-- Hit safety limit but not fully sorted
-			addon:Print("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
-				sortType, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, passCount)
+  elseif passCount >= safetyLimit then
+            -- Hit safety limit but not fully sorted
+            addon:Print("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
+                sortType, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, passCount)
 
 			-- Final update
 			local frame = CreateFrame("Frame")
@@ -1049,11 +1167,33 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 					updateFrame()
 				end
 			end)
-		else
-			-- More sorting needed
-			local remainingRatio = currentAnalysis.itemsOutOfPlace / math.max(1, currentAnalysis.totalItems)
-			addon:Print("%s Pass %d: %d moves, %d/%d items remaining (%.1f%%)",
-				sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
+  else
+            -- No progress guard: stop if we make no moves repeatedly
+            if moveCount == 0 then
+                noProgressPasses = noProgressPasses + 1
+            else
+                noProgressPasses = 0
+            end
+
+            if noProgressPasses >= 3 then
+                addon:Print("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
+                    sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
+                -- Final update
+                local frame = CreateFrame("Frame")
+                local startTime = GetTime()
+                frame:SetScript("OnUpdate", function()
+                    if GetTime() - startTime >= 0.7 then
+                        frame:SetScript("OnUpdate", nil)
+                        updateFrame()
+                    end
+                end)
+                return
+            end
+
+            -- More sorting needed
+            local remainingRatio = currentAnalysis.itemsOutOfPlace / math.max(1, currentAnalysis.totalItems)
+            addon:Print("%s Pass %d: %d moves, %d/%d items remaining (%.1f%%)",
+                sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
 
 			-- PROGRESSIVE DELAY: Calculate delay based on remaining complexity
 			local baseDelay = 0.7

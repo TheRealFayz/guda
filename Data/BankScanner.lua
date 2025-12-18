@@ -30,6 +30,8 @@ function BankScanner:ScanBankBag(bagID)
     local bagType = "regular"
     if addon.Modules.Utils:IsSoulBag(bagID) then
         bagType = "soul"
+    elseif addon.Modules.Utils:IsHerbBag(bagID) then
+        bagType = "herb"
     elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
         bagType = "ammo"
     end

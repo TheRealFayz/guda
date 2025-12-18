@@ -240,6 +240,41 @@ function Utils:IsAmmoQuiverBag(bagID)
     return false
 end
 
+-- Check if a bag is Herb Bag
+function Utils:IsHerbBag(bagID)
+    -- Skip backpack, bank, and keyring
+    if bagID == 0 or bagID == -1 or bagID == -2 then
+        return false
+    end
+
+    local invSlot = ContainerIDToInventoryID(bagID)
+    if not invSlot then return false end
+
+    local link = GetInventoryItemLink("player", invSlot)
+    if not link then return false end
+
+    -- Prefer specialized type detection
+    local bagType = self:GetSpecializedBagType(bagID)
+    if bagType == "herb" then return true end
+
+    -- Fallback: tooltip scan for "Herb Bag"
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetInventoryItem("player", invSlot)
+
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text and string.find(string.lower(text), "herb bag") then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 -- Check if a bag is Soul Bag
 function Utils:IsSoulBag(bagID)
     -- Skip backpack, bank, and keyring
@@ -289,7 +324,7 @@ function Utils:IsSoulBag(bagID)
 end
 
 -- Get specialized bag type (for sorting priority)
--- Returns: "soul", "quiver", "ammo", or nil
+-- Returns: "soul", "herb", "quiver", "ammo", or nil
 function Utils:GetSpecializedBagType(bagID)
     -- Skip backpack, bank, and keyring
     if bagID == 0 or bagID == -1 or bagID == -2 then
@@ -322,6 +357,11 @@ function Utils:GetSpecializedBagType(bagID)
             return "soul"
         end
 
+        -- Herb Bag
+        if string.find(typeLower, "herb bag") then
+            return "herb"
+        end
+
         -- Quiver
         if string.find(typeLower, "quiver") then
             return "quiver"
@@ -341,6 +381,8 @@ function Utils:GetContainerPriority(bagID)
     local bagType = self:GetSpecializedBagType(bagID)
     if bagType == "soul" then
         return 40
+    elseif bagType == "herb" then
+        return 35
     elseif bagType == "quiver" then
         return 30
     elseif bagType == "ammo" then
@@ -381,32 +423,37 @@ function Utils:IsAmmo(itemType)
 end
 
 -- Get preferred container type for an item
--- Returns: "soul", "quiver", "ammo", or nil
+-- Returns: "soul", "herb", "quiver", "ammo", or nil
 function Utils:GetItemPreferredContainer(itemLink)
-	if not itemLink then return nil end
+    if not itemLink then return nil end
 
-	-- Check for soul shards first
-	if self:IsSoulShard(itemLink) then
-		return "soul"
-	end
+    -- Check for soul shards first
+    if self:IsSoulShard(itemLink) then
+        return "soul"
+    end
 
-	-- Get item info using utility function
-	local itemID = self:ExtractItemID(itemLink)
-	if not itemID then return nil end
+    -- Get item info using utility function
+    local itemID = self:ExtractItemID(itemLink)
+    if not itemID then return nil end
 
-	local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = self:GetItemInfoSafe(itemID)
-	if not itemType then return nil end
+    local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture = self:GetItemInfoSafe(itemID)
+    if not itemType then return nil end
 
-	-- Only route PROJECTILE category items that are specifically arrows or bullets
-	if itemCategory == "Projectile" then
-		if itemType == "Arrow" then
-			return "quiver"
-		elseif itemType == "Bullet" then
-			return "ammo"
-		end
-	end
+    -- Only route PROJECTILE category items that are specifically arrows or bullets
+    if itemCategory == "Projectile" then
+        if itemType == "Arrow" then
+            return "quiver"
+        elseif itemType == "Bullet" then
+            return "ammo"
+        end
+    end
 
-	return nil
+    -- Route herbs to herb bags (robust: category/subtype OR texture pattern fallback)
+    if self:IsHerbItem(itemLink) then
+        return "herb"
+    end
+
+    return nil
 end
 
 -- Check if an item is equipment (armor, weapon, or other equippable)
@@ -432,5 +479,36 @@ function Utils:IsEquipment(itemLink)
 		end
 	end
 
-	return false
+ return false
+end
+
+-- Determine if an item is a herb (for routing to herb bags)
+-- NEW rule (per request): require BOTH
+--   1) itemCategory == "Trade Goods"
+--   2) texture contains "INV_Misc_Herb" (case-insensitive; prefix tolerated)
+function Utils:IsHerbItem(itemLink)
+    if not itemLink then return false end
+
+    local itemID = self:ExtractItemID(itemLink)
+    if not itemID then return false end
+
+    local name, _, quality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture = self:GetItemInfoSafe(itemID)
+
+    if itemCategory ~= "Trade Goods" then
+        return false
+    end
+
+    if not itemTexture then
+        return false
+    end
+
+    -- Normalize and check texture name
+    local tex = string.lower(itemTexture)
+    tex = string.gsub(tex, "^interface\\\\icons\\\\", "")
+
+    if string.find(tex, "inv_misc_herb") or string.find(tex, "misc_herb") then
+        return true
+    end
+
+    return false
 end

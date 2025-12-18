@@ -196,28 +196,90 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bankColumns") or 10
     local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
 
-    for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
-        -- Skip bags that are hidden
-        if not hiddenBankBags[bagID] then
-            local bag = bankData[bagID]
+    -- Separate bank bags into regular, soul, herb, and ammo/quiver types
+    local regularBags = {}
+    local soulBags = {}
+    local herbBags = {}
+    local ammoQuiverBags = {}
 
-            -- Get slot count for this bag
-            local numSlots
-            if isOtherChar and bag and bag.numSlots then
-                -- Use stored slot count for other characters
-                numSlots = bag.numSlots
+    for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
+        if not hiddenBankBags[bagID] then
+            local bagType
+            if isOtherChar then
+                -- Use saved bag type for other characters
+                local bagSaved = bankData and bankData[bagID]
+                bagType = bagSaved and bagSaved.bagType or "regular"
             else
-                -- Use current character's bag slot count
-                numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+                -- Live detection for current character when bank is open
+                if addon.Modules.Utils:IsSoulBag(bagID) then
+                    bagType = "soul"
+                elseif addon.Modules.Utils:IsHerbBag(bagID) then
+                    bagType = "herb"
+                elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
+                    bagType = "ammo"
+                else
+                    bagType = "regular"
+                end
             end
 
-            -- Only show bags that have slots
-            if numSlots and numSlots > 0 then
-            -- Iterate through ALL slots (1 to numSlots) to show empty slots too
+            if bagType == "soul" then
+                table.insert(soulBags, bagID)
+            elseif bagType == "herb" then
+                table.insert(herbBags, bagID)
+            elseif bagType == "ammo" then
+                table.insert(ammoQuiverBags, bagID)
+            else
+                table.insert(regularBags, bagID)
+            end
+        end
+    end
+
+    -- Build display order: regular -> soul -> herb -> ammo/quiver
+    local bagsToShow = {}
+    for _, bagID in ipairs(regularBags) do
+        table.insert(bagsToShow, { bagID = bagID, needsSpacing = false })
+    end
+    if table.getn(soulBags) > 0 then
+        for i, bagID in ipairs(soulBags) do
+            table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
+        end
+    end
+    if table.getn(herbBags) > 0 then
+        for i, bagID in ipairs(herbBags) do
+            table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
+        end
+    end
+    if table.getn(ammoQuiverBags) > 0 then
+        for i, bagID in ipairs(ammoQuiverBags) do
+            table.insert(bagsToShow, { bagID = bagID, needsSpacing = (i == 1) })
+        end
+    end
+
+    for _, bagInfo in ipairs(bagsToShow) do
+        local bagID = bagInfo.bagID
+        local bag = bankData and bankData[bagID]
+
+        -- Add spacing before first of each specialized section
+        if bagInfo.needsSpacing then
+            if col > 0 then
+                col = 0
+                row = row + 1
+            end
+            row = row + 0.5
+        end
+
+        -- Get slot count for this bag
+        local numSlots
+        if isOtherChar and bag and bag.numSlots then
+            numSlots = bag.numSlots
+        else
+            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+        end
+
+        if numSlots and numSlots > 0 then
             for slot = 1, numSlots do
                 local itemData = bag and bag.slots and bag.slots[slot] or nil
 
-                -- Check if item matches search filter
                 local matchesFilter = self:PassesSearchFilter(itemData)
 
                 -- Ensure a per-bag parent frame exists and carries the bag ID
@@ -232,32 +294,23 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 bankBagParent = bankBagParents[bagID]
 
                 local button = Guda_GetItemButton(bankBagParent)
+                if button.isBagSlot then break end
 
-                -- Ensure this is NOT a bag slot button
-                if button.isBagSlot then
-                    break
-                end
+                button.inUse = true
 
-                button.inUse = true  -- Mark this button as actively in use
-
-                -- Position button
                 local xPos = x + (col * (buttonSize + spacing))
                 local yPos = y - (row * (buttonSize + spacing))
 
                 button:ClearAllPoints()
                 button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", xPos, yPos)
 
-                -- Set item data with filter match info
-                -- Pass isReadOnlyMode to disable interaction for saved banks
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, isReadOnlyMode)
 
-                -- Advance position
                 col = col + 1
                 if col >= perRow then
                     col = 0
                     row = row + 1
                 end
-            end
             end
         end
     end
@@ -608,12 +661,12 @@ function Guda_BankFrame_Sort()
 		return
 	end
 
-	local success, message = addon.Modules.SortEngine:ExecuteSort(
-		function() return addon.Modules.SortEngine:SortBank() end,
-		function() return addon.Modules.SortEngine:AnalyzeBank() end,
-		function() BankFrame:Update() end,
-		"bank"
-	)
+ local success, message = addon.Modules.SortEngine:ExecuteSort(
+        function() return addon.Modules.SortEngine:SortBankPass() end,
+        function() return addon.Modules.SortEngine:AnalyzeBank() end,
+        function() BankFrame:Update() end,
+        "bank"
+    )
 
 	if not success and message == "already sorted" then
 		addon:Print("Bank is already sorted!")
