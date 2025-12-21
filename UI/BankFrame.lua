@@ -16,6 +16,9 @@ local bankClickCatcher = nil
 
 -- OnLoad
 function Guda_BankFrame_OnLoad(self)
+    -- Set up initial backdrop
+    addon:ApplyBackdrop(self, "DEFAULT_FRAME")
+
     -- Set up search box placeholder
     local searchBox = getglobal(self:GetName().."_SearchBar_SearchBox")
     if searchBox then
@@ -66,6 +69,11 @@ function Guda_BankFrame_OnShow(self)
    	if BankFrame.UpdateFooterVisibility then
    		BankFrame:UpdateFooterVisibility()
    	end
+
+	-- Apply frame transparency
+	if Guda_ApplyBackgroundTransparency then
+		Guda_ApplyBackgroundTransparency()
+	end
 
    	BankFrame:Update()
    end

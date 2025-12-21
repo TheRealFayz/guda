@@ -38,6 +38,9 @@ end
 
 -- OnLoad
 function Guda_BagFrame_OnLoad(self)
+    -- Set up initial backdrop
+    addon:ApplyBackdrop(self, "DEFAULT_FRAME")
+
 -- Set up search box placeholder
 	local searchBox = getglobal(self:GetName().."_SearchBar_SearchBox")
 	if searchBox then
@@ -94,6 +97,11 @@ function Guda_BagFrame_OnShow(self)
 	-- Apply footer visibility setting
 	if BagFrame.UpdateFooterVisibility then
 		BagFrame:UpdateFooterVisibility()
+	end
+
+	-- Apply frame transparency
+	if Guda_ApplyBackgroundTransparency then
+		Guda_ApplyBackgroundTransparency()
 	end
 
 	BagFrame:Update()

@@ -15,7 +15,7 @@
             </Anchor>
         </Anchors>
 
-        <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+        <Backdrop bgFile="Interface\ChatFrame\ChatFrameBackground" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
             <BackgroundInsets>
                 <AbsInset left="11" right="12" top="12" bottom="11"/>
             </BackgroundInsets>
@@ -25,7 +25,6 @@
             <EdgeSize>
                 <AbsValue val="32"/>
             </EdgeSize>
-            <Color r="0" g="0" b="0" a="0.9"/>
         </Backdrop>
 
         <Layers>

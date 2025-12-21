@@ -16,6 +16,9 @@ end
 
 -- OnLoad
 function Guda_SettingsPopup_OnLoad(self)
+    -- Set up initial backdrop
+    Guda:ApplyBackdrop(self, "DEFAULT_FRAME")
+
     local title = getglobal(self:GetName().."_Title")
     title:SetText("Guda Settings")
     -- Increase title font size
@@ -62,6 +65,7 @@ function Guda_SettingsPopup_OnShow(self)
     if hoverBagline == nil then
         hoverBagline = false
     end
+    local bgTransparency = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -69,6 +73,7 @@ function Guda_SettingsPopup_OnShow(self)
     local iconSizeSlider = getglobal("Guda_SettingsPopup_IconSizeSlider")
     local iconFontSizeSlider = getglobal("Guda_SettingsPopup_IconFontSizeSlider")
     local iconSpacingSlider = getglobal("Guda_SettingsPopup_IconSpacingSlider")
+    local bgTransparencySlider = getglobal("Guda_SettingsPopup_BgTransparencySlider")
     local lockCheckbox = getglobal("Guda_SettingsPopup_LockBagsCheckbox")
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
     local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
@@ -95,6 +100,10 @@ function Guda_SettingsPopup_OnShow(self)
 
     if iconSpacingSlider then
         iconSpacingSlider:SetValue(iconSpacing)
+    end
+
+    if bgTransparencySlider then
+        bgTransparencySlider:SetValue(bgTransparency)
     end
 
     if lockCheckbox then
@@ -217,6 +226,60 @@ function Guda_SettingsPopup_BankColumnsSlider_OnValueChanged(self)
     local bankFrame = getglobal("Guda_BankFrame")
     if bankFrame and bankFrame:IsShown() then
         Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Background Transparency Slider OnLoad
+function Guda_SettingsPopup_BgTransparencySlider_OnLoad(self)
+    getglobal(self:GetName().."Low"):SetText("0%")
+    getglobal(self:GetName().."High"):SetText("100%")
+
+    local text = getglobal(self:GetName().."Text")
+    text:SetText("Background Transparency")
+
+    -- Increase font size
+    local font, _, flags = text:GetFont()
+    if font then
+        text:SetFont(font, 12, flags)
+    end
+
+    self:SetMinMaxValues(0.0, 1.0)
+    self:SetValueStep(0.05)
+
+    local currentValue = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    self:SetValue(currentValue)
+end
+
+-- Background Transparency Slider OnValueChanged
+function Guda_SettingsPopup_BgTransparencySlider_OnValueChanged(self)
+    local value = self:GetValue()
+    -- Round to 2 decimal places
+    value = math.floor(value * 100 + 0.5) / 100
+
+    -- Update display text
+    getglobal(self:GetName().."Text"):SetText("Background Transparency: " .. math.floor(value * 100) .. "%")
+
+    -- Save setting
+    Guda.Modules.DB:SetSetting("bgTransparency", value)
+
+    -- Apply transparency
+    Guda_ApplyBackgroundTransparency()
+end
+
+-- Apply background transparency to bag and bank frames
+function Guda_ApplyBackgroundTransparency()
+    local transparency = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
+    local alpha = 1.0 - transparency
+    
+    local frames = { "Guda_BagFrame", "Guda_BankFrame", "Guda_SettingsPopup", "Guda_QuestItemBar" }
+    for _, frameName in ipairs(frames) do
+        local frame = getglobal(frameName)
+        if frame then
+            -- Reset frame alpha to 1.0 (previous version might have set it)
+            frame:SetAlpha(1.0)
+            -- Set backdrop color (background only)
+            frame:SetBackdropColor(0, 0, 0, alpha)
+        end
     end
 end
 

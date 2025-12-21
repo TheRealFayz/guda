@@ -57,27 +57,27 @@ addon.Constants = {
     Backdrops = {
         -- Standard frame backdrop (used for main windows)
         DEFAULT_FRAME = {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
             edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
             tile = true,
-            tileSize = 32,
+            tileSize = 16,
             edgeSize = 32,
             insets = { left = 11, right = 12, top = 12, bottom = 11 }
         },
 
         -- Minimalist border (used when "hide borders" setting is enabled)
         MINIMALIST_BORDER = {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
             tile = true,
-            tileSize = 32,
+            tileSize = 16,
             edgeSize = 2,
             insets = { left = 0, right = 0, top = 0, bottom = 0 }
         },
 
         -- Dropdown/popup backdrop (used for character selection dropdowns)
         DROPDOWN = {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
             edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
             tile = true,
             tileSize = 16,
@@ -88,7 +88,7 @@ addon.Constants = {
 
     -- Backdrop colors (common configurations)
     BackdropColors = {
-        DEFAULT = {r = 0, g = 0, b = 0, a = 0.9},
+        DEFAULT = {r = 0, g = 0, b = 0, a = 0.85},
         DROPDOWN = {r = 0, g = 0, b = 0, a = 0.95},
     },
 }
@@ -196,7 +196,18 @@ function addon:ApplyBackdrop(frame, backdropType, colorType)
     end
 
     frame:SetBackdrop(backdrop)
-    frame:SetBackdropColor(color.r, color.g, color.b, color.a)
+    
+    -- If it's a main frame, we should respect the transparency setting
+    local frameName = frame:GetName()
+    if frameName == "Guda_BagFrame" or frameName == "Guda_BankFrame" or frameName == "Guda_SettingsPopup" or frameName == "Guda_QuestItemBar" then
+        if Guda_ApplyBackgroundTransparency then
+            Guda_ApplyBackgroundTransparency()
+        else
+            frame:SetBackdropColor(color.r, color.g, color.b, color.a)
+        end
+    else
+        frame:SetBackdropColor(color.r, color.g, color.b, color.a)
+    end
 
     -- Set border color to white for minimalist borders
     if backdropType == "MINIMALIST_BORDER" then

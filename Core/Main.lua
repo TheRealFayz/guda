@@ -43,6 +43,11 @@ function Main:Initialize()
         
         addon.Modules.SettingsPopup:Initialize()
 
+        -- Apply initial transparency settings
+        if Guda_ApplyBackgroundTransparency then
+            Guda_ApplyBackgroundTransparency()
+        end
+
         -- Initialize tooltip
         if addon.Modules.Tooltip then
             addon.Modules.Tooltip:Initialize()

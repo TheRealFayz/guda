@@ -44,11 +44,20 @@ function DB:Initialize()
 				showSearchBar = true,
 				hoverBagline = false,
 				hideFooter = false,
+				bgTransparency = 0.15,
 			},
 		}
 	end
 
 	-- Ensure new settings exist for existing installations
+	if Guda_CharDB.settings.bgTransparency == nil then
+		if Guda_CharDB.settings.frameOpacity ~= nil then
+			Guda_CharDB.settings.bgTransparency = 1.0 - Guda_CharDB.settings.frameOpacity
+			Guda_CharDB.settings.frameOpacity = nil -- Clean up old setting
+		else
+			Guda_CharDB.settings.bgTransparency = 0.15
+		end
+	end
 	if Guda_CharDB.settings.hideFooter == nil then
 		Guda_CharDB.settings.hideFooter = false
 	end

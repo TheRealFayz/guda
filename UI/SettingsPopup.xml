@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="420" y="530"/>
+            <AbsDimension x="420" y="570"/>
         </Size>
 
         <Anchors>
@@ -14,7 +14,7 @@
             </Anchor>
         </Anchors>
 
-        <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+        <Backdrop bgFile="Interface\ChatFrame\ChatFrameBackground" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
             <BackgroundInsets>
                 <AbsInset left="11" right="12" top="12" bottom="11"/>
             </BackgroundInsets>
@@ -24,7 +24,6 @@
             <EdgeSize>
                 <AbsValue val="32"/>
             </EdgeSize>
-            <Color r="0" g="0" b="0" a="0.9"/>
         </Backdrop>
 
         <Layers>
@@ -170,10 +169,32 @@
                 </Scripts>
             </Slider>
 
+            <!-- Background Transparency Slider -->
+            <Slider name="$parent_BgTransparencySlider" inherits="OptionsSliderTemplate">
+                <Size>
+                    <AbsDimension x="370" y="17"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconSpacingSlider">
+                        <Offset>
+                            <AbsDimension x="0" y="-40"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_BgTransparencySlider_OnLoad(this)
+                    </OnLoad>
+                    <OnValueChanged>
+                        Guda_SettingsPopup_BgTransparencySlider_OnValueChanged(this)
+                    </OnValueChanged>
+                </Scripts>
+            </Slider>
+
             <!-- Lock Bags Checkbox -->
             <CheckButton name="$parent_LockBagsCheckbox" inherits="OptionsCheckButtonTemplate">
                 <Anchors>
-                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconSpacingSlider">
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_BgTransparencySlider">
                         <Offset>
                             <AbsDimension x="-170" y="-30"/>
                         </Offset>
