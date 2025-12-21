@@ -58,6 +58,10 @@ function Guda_SettingsPopup_OnShow(self)
     if showQuestBar == nil then
         showQuestBar = true
     end
+    local hoverBagline = Guda.Modules.DB:GetSetting("hoverBagline")
+    if hoverBagline == nil then
+        hoverBagline = false
+    end
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -71,6 +75,7 @@ function Guda_SettingsPopup_OnShow(self)
     local qualityBorderOtherCheckbox = getglobal("Guda_SettingsPopup_QualityBorderOtherCheckbox")
     local showSearchBarCheckbox = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
     local showQuestBarCheckbox = getglobal("Guda_SettingsPopup_ShowQuestBarCheckbox")
+    local hoverBaglineCheckbox = getglobal("Guda_SettingsPopup_HoverBaglineCheckbox")
 
     if bagSlider then
         bagSlider:SetValue(bagColumns)
@@ -114,6 +119,16 @@ function Guda_SettingsPopup_OnShow(self)
 
     if showQuestBarCheckbox then
         showQuestBarCheckbox:SetChecked(showQuestBar and 1 or 0)
+    end
+
+    if hoverBaglineCheckbox then
+        hoverBaglineCheckbox:SetChecked(hoverBagline and 1 or 0)
+    end
+
+    -- Update display (might be too tall for current frame size)
+    local frame = getglobal("Guda_SettingsPopup")
+    if frame then
+        frame:SetHeight(560)
     end
 end
 
@@ -600,6 +615,46 @@ function Guda_SettingsPopup_ShowQuestBarCheckbox_OnClick(self)
     -- Update quest bar visibility
     if Guda.Modules.QuestItemBar and Guda.Modules.QuestItemBar.Update then
         Guda.Modules.QuestItemBar:Update()
+    end
+end
+
+-- Hover Bagline Checkbox OnLoad
+function Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Hover Bagline")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local hoverBagline = false
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        hoverBagline = Guda.Modules.DB:GetSetting("hoverBagline")
+        if hoverBagline == nil then
+            hoverBagline = false
+        end
+    end
+
+    self:SetChecked(hoverBagline and 1 or 0)
+end
+
+-- Hover Bagline Checkbox OnClick
+function Guda_SettingsPopup_HoverBaglineCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("hoverBagline", isChecked)
+    end
+
+    -- Update bag frame
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        Guda.Modules.BagFrame:Update()
     end
 end
 

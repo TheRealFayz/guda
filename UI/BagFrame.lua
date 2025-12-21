@@ -150,6 +150,104 @@ function BagFrame:UpdateLockStates()
 	end
 end
 
+-- Update bagline layout (hover option)
+function BagFrame:UpdateBaglineLayout()
+	local hoverBagline = addon.Modules.DB:GetSetting("hoverBagline")
+	local toolbar = getglobal("Guda_BagFrame_Toolbar")
+	if not toolbar then return end
+
+	local bag0 = getglobal("Guda_BagFrame_Toolbar_BagSlot0")
+	local bag1 = getglobal("Guda_BagFrame_Toolbar_BagSlot1")
+	local bag2 = getglobal("Guda_BagFrame_Toolbar_BagSlot2")
+	local bag3 = getglobal("Guda_BagFrame_Toolbar_BagSlot3")
+	local bag4 = getglobal("Guda_BagFrame_Toolbar_BagSlot4")
+	local keyring = getglobal("Guda_BagFrame_Toolbar_KeyringButton")
+	local info = getglobal("Guda_BagFrame_Toolbar_BagSlotsInfo")
+
+	if hoverBagline then
+		-- Hide extra bags by default if not hovering
+		if not toolbar.isHovered then
+			if bag1 then bag1:Hide() end
+			if bag2 then bag2:Hide() end
+			if bag3 then bag3:Hide() end
+			if bag4 then bag4:Hide() end
+		end
+
+		-- Re-anchor Keyring to BagSlot0
+		if keyring and bag0 then
+			keyring:ClearAllPoints()
+			keyring:SetPoint("LEFT", bag0, "RIGHT", 2, 0)
+		end
+
+		-- Keep info visible and anchor it to Keyring
+		if info then
+			info:Show()
+			info:ClearAllPoints()
+			info:SetPoint("LEFT", keyring, "RIGHT", 8, 0)
+		end
+
+		-- If hovered, show and position vertically above Bag0
+		if toolbar.isHovered then
+			if bag1 then
+				bag1:Show()
+				bag1:SetFrameLevel(bag0:GetFrameLevel() + 10)
+				bag1:ClearAllPoints()
+				bag1:SetPoint("BOTTOM", bag0, "TOP", 0, 2)
+			end
+			if bag2 then
+				bag2:Show()
+				bag2:SetFrameLevel(bag0:GetFrameLevel() + 10)
+				bag2:ClearAllPoints()
+				bag2:SetPoint("BOTTOM", bag1, "TOP", 0, 2)
+			end
+			if bag3 then
+				bag3:Show()
+				bag3:SetFrameLevel(bag0:GetFrameLevel() + 10)
+				bag3:ClearAllPoints()
+				bag3:SetPoint("BOTTOM", bag2, "TOP", 0, 2)
+			end
+			if bag4 then
+				bag4:Show()
+				bag4:SetFrameLevel(bag0:GetFrameLevel() + 10)
+				bag4:ClearAllPoints()
+				bag4:SetPoint("BOTTOM", bag3, "TOP", 0, 2)
+			end
+		end
+	else
+		-- Restore standard horizontal layout
+		if bag1 then
+			bag1:Show()
+			bag1:ClearAllPoints()
+			bag1:SetPoint("LEFT", bag0, "RIGHT", 2, 0)
+		end
+		if bag2 then
+			bag2:Show()
+			bag2:ClearAllPoints()
+			bag2:SetPoint("LEFT", bag1, "RIGHT", 2, 0)
+		end
+		if bag3 then
+			bag3:Show()
+			bag3:ClearAllPoints()
+			bag3:SetPoint("LEFT", bag2, "RIGHT", 2, 0)
+		end
+		if bag4 then
+			bag4:Show()
+			bag4:ClearAllPoints()
+			bag4:SetPoint("LEFT", bag3, "RIGHT", 2, 0)
+		end
+		if keyring then
+			keyring:Show()
+			keyring:ClearAllPoints()
+			keyring:SetPoint("LEFT", bag4, "RIGHT", 2, 0)
+		end
+		if info then
+			info:Show()
+			info:ClearAllPoints()
+			info:SetPoint("LEFT", keyring, "RIGHT", 8, 0)
+		end
+	end
+end
+
 -- Update display
 function BagFrame:Update()
 	if not Guda_BagFrame:IsShown() then
@@ -211,6 +309,9 @@ function BagFrame:Update()
 
 	-- Update bag slots info
 	self:UpdateBagSlotsInfo(bagData, isOtherChar)
+
+	-- Update bagline layout (hover option)
+	self:UpdateBaglineLayout()
 
 	-- Clean up unused buttons AFTER display is complete (prevents drag/drop issues)
 	for _, bagParent in pairs(bagParents) do
@@ -1719,6 +1820,17 @@ end
 
 -- OnEnter handler for tooltip
 function Guda_BagSlot_OnEnter(button, bagID)
+	-- Handle hover bagline
+	local hoverBagline = addon.Modules.DB:GetSetting("hoverBagline")
+	if hoverBagline then
+		local toolbar = getglobal("Guda_BagFrame_Toolbar")
+		if toolbar then
+			toolbar.isHovered = true
+			toolbar.hoverTimer = nil -- Cancel any pending hide
+			BagFrame:UpdateBaglineLayout()
+		end
+	end
+
 	GameTooltip:SetOwner(button, "ANCHOR_TOP")
 
 	if bagID == 0 then
@@ -1757,6 +1869,32 @@ function Guda_BagSlot_OnEnter(button, bagID)
 	end
 
 	GameTooltip:Show()
+end
+
+-- OnLeave handler for tooltip
+function Guda_BagSlot_OnLeave(button, bagID)
+	-- Handle hover bagline
+	local hoverBagline = addon.Modules.DB:GetSetting("hoverBagline")
+	if hoverBagline then
+		local toolbar = getglobal("Guda_BagFrame_Toolbar")
+		if toolbar then
+			-- Start a small timer to hide, so we can move mouse between bags
+			toolbar.hoverTimer = 0.1
+			if not toolbar.hasOnUpdate then
+				toolbar:SetScript("OnUpdate", function()
+					if this.hoverTimer then
+						this.hoverTimer = this.hoverTimer - arg1
+						if this.hoverTimer <= 0 then
+							this.hoverTimer = nil
+							this.isHovered = false
+							BagFrame:UpdateBaglineLayout()
+						end
+					end
+				end)
+				toolbar.hasOnUpdate = true
+			end
+		end
+	end
 end
 
 -- Highlight all item slots belonging to a specific bag by dimming others

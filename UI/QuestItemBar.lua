@@ -153,6 +153,36 @@ function QuestItemBar:Update()
         button.bagID = item.bagID
         button.slotID = item.slotID
         button.itemData = { link = GetContainerItemLink(item.bagID, item.slotID) }
+
+        button.hasItem = true
+        button.isBank = false
+        button.otherChar = nil
+
+        -- Custom click handler for Quest Item Bar
+        button:SetScript("OnClick", function()
+            if arg1 == "LeftButton" then
+                if IsShiftKeyDown() then
+                    local link = GetContainerItemLink(this.bagID, this.slotID)
+                    if link then
+                        HandleModifiedItemClick(link)
+                    end
+                else
+                    UseContainerItem(this.bagID, this.slotID)
+                end
+            elseif arg1 == "RightButton" then
+                -- Right click also uses it or maybe open socketing? 
+                -- UseContainerItem handles both depending on context usually.
+                UseContainerItem(this.bagID, this.slotID)
+            end
+        end)
+
+        button:SetScript("OnEnter", function()
+            Guda_ItemButton_OnEnter(this)
+        end)
+
+        button:SetScript("OnLeave", function()
+            Guda_ItemButton_OnLeave(this)
+        end)
         
         local icon = getglobal(button:GetName() .. "IconTexture")
         icon:SetTexture(item.texture)
@@ -168,9 +198,11 @@ function QuestItemBar:Update()
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "LEFT", xOffset + (i-1) * (buttonSize + spacing), 0)
         button:Show()
-        
-        -- Set custom data for tooltip handling
-        button.hasItem = true
+
+        -- Update visual overlays (cooldown, etc)
+        if Guda_ItemButton_UpdateCooldown then
+            Guda_ItemButton_UpdateCooldown(button)
+        end
 
         -- Allow dragging the bar via buttons
         button:RegisterForDrag("LeftButton")
@@ -194,6 +226,14 @@ function QuestItemBar:Update()
     -- Adjust frame width based on number of items
     local newWidth = xOffset * 2 + table.getn(questItems) * (buttonSize + spacing) - spacing
     frame:SetWidth(math.max(newWidth, 40))
+end
+
+function QuestItemBar:UpdateCooldowns()
+    for _, button in ipairs(buttons) do
+        if button:IsShown() and Guda_ItemButton_UpdateCooldown then
+            Guda_ItemButton_UpdateCooldown(button)
+        end
+    end
 end
 
 function QuestItemBar:Initialize()
@@ -228,6 +268,10 @@ function QuestItemBar:Initialize()
     -- Register for events
     addon.Modules.Events:Register("BAG_UPDATE", function()
         QuestItemBar:Update()
+    end, "QuestItemBar")
+
+    addon.Modules.Events:Register("BAG_UPDATE_COOLDOWN", function()
+        QuestItemBar:UpdateCooldowns()
     end, "QuestItemBar")
     
     addon.Modules.Events:Register("PLAYER_ENTERING_WORLD", function()

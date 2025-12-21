@@ -283,6 +283,25 @@
                     </OnClick>
                 </Scripts>
             </CheckButton>
+
+            <!-- Hover Bagline Checkbox -->
+            <CheckButton name="$parent_HoverBaglineCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_ShowSearchBarCheckbox">
+                        <Offset>
+                            <AbsDimension x="0" y="-8"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_HoverBaglineCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
         </Frames>
 
         <Scripts>

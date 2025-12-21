@@ -298,6 +298,7 @@
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, 0)
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -338,6 +339,7 @@
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, 1)
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -378,6 +380,7 @@
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, 2)
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -418,6 +421,7 @@
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, 3)
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -458,6 +462,7 @@
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, 4)
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -507,10 +512,12 @@
                                 GameTooltip:AddLine("(Click to toggle)", 0.5, 0.8, 0.5)
                                 GameTooltip:Show()
                                 Guda_BagFrame_HighlightBagSlots(-2)
+                                Guda_BagSlot_OnEnter(this, -2)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
                                 Guda_BagFrame_ClearHighlightedSlots()
+                                Guda_BagSlot_OnLeave(this, -2)
                             </OnLeave>
                         </Scripts>
                     </Button>
