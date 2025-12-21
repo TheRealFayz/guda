@@ -246,10 +246,7 @@ function QuestItemBar:Update()
                         -- We'll rely on Alt-Click from bags for pinning.
                     end
 
-                    if IsShiftKeyDown() then
-                        local link = GetContainerItemLink(this.bagID, this.slotID)
-                        if link then HandleModifiedItemClick(link) end
-                    else
+                    if not IsShiftKeyDown() then
                         UseContainerItem(this.bagID, this.slotID)
                     end
                 elseif arg1 == "RightButton" then
