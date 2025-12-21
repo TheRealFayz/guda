@@ -137,7 +137,31 @@ function Guda_SettingsPopup_OnShow(self)
     -- Update display (might be too tall for current frame size)
     local frame = getglobal("Guda_SettingsPopup")
     if frame then
-        frame:SetHeight(560)
+        frame:SetHeight(600)
+    end
+
+    -- Apply border visibility
+    if SettingsPopup.UpdateBorderVisibility then
+        SettingsPopup:UpdateBorderVisibility()
+    end
+end
+
+-- Update border visibility based on setting
+function SettingsPopup:UpdateBorderVisibility()
+    if not addon or not addon.Modules or not addon.Modules.DB then return end
+
+    local frame = getglobal("Guda_SettingsPopup")
+    if not frame then return end
+
+    local hideBorders = addon.Modules.DB:GetSetting("hideBorders")
+    if hideBorders == nil then
+        hideBorders = false
+    end
+
+    if hideBorders then
+        addon:ApplyBackdrop(frame, "MINIMALIST_BORDER", "DEFAULT")
+    else
+        addon:ApplyBackdrop(frame, "DEFAULT_FRAME", "DEFAULT")
     end
 end
 
@@ -498,6 +522,11 @@ function Guda_SettingsPopup_HideBordersCheckbox_OnClick(self)
         else
             Guda:ApplyBackdrop(bankFrame, "DEFAULT_FRAME", "DEFAULT")
         end
+    end
+
+    -- Update border visibility on settings frame
+    if SettingsPopup.UpdateBorderVisibility then
+        SettingsPopup:UpdateBorderVisibility()
     end
 end
 
