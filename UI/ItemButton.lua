@@ -53,13 +53,13 @@ local function IsQuestItem(bagID, slotID)
              if itemCategory == "Quest" or itemType == "Quest" then
                  isQuestItem = true
                  -- For quest items, try a light heuristic to flag starters by name
-                 if itemName and (string.find(itemName, "Note") or
-                     string.find(itemName, "Letter") or
-                     string.find(itemName, "Orders") or
-                     string.find(itemName, "Rune") or
-                     string.find(itemName, "Tablet")) then
-                     isQuestStarter = true
-                 end
+                 --if itemName and (string.find(itemName, "Note") or
+                 --    string.find(itemName, "Letter") or
+                 --    string.find(itemName, "Orders") or
+                 --    string.find(itemName, "Document") or
+                 --    string.find(itemName, "Tablet")) then
+                 --    isQuestStarter = true
+                 --end
              end
          end
      end
