@@ -268,7 +268,6 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 		-- Bottom padding below the Inventory block (~10-12px visually)
 		--tooltip:AddLine(" ")
 
-		tooltip:Show()
 	end
 end
 
@@ -323,6 +322,9 @@ function Tooltip:Initialize()
 			local q = queue[i]
 			Orig_SetTooltipMoney(q[1], q[2], q[3], q[4], q[5], q[6], q[7])
 		end
+
+		-- Ensure the tooltip background resizes to include both our block and the money frame
+		tooltip:Show()
 
 		-- Add ~5px more space below the Inventory block by reducing the upward nudge from 15px to 10px
 		--AdjustMoneyFrames(tooltip, 12)
@@ -381,7 +383,7 @@ function Tooltip:Initialize()
 	end
 
 	-- Hook SetInventoryItem for character paperdoll
-	local oldSetInventoryItem = GameTooltip.SetInventoryItem
+	oldSetInventoryItem = GameTooltip.SetInventoryItem
 	function GameTooltip:SetInventoryItem(unit, slot)
 		return WithDeferredMoney(self, function()
 			local ret = oldSetInventoryItem(self, unit, slot)
