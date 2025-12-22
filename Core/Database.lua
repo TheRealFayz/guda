@@ -45,6 +45,8 @@ function DB:Initialize()
 				hoverBagline = false,
 				hideFooter = false,
 				bgTransparency = 0.15,
+				showTrackedItems = false,
+				trackedItems = {},
 			},
 		}
 	end
@@ -66,6 +68,12 @@ function DB:Initialize()
 	end
 	if Guda_CharDB.settings.showQuestBar == nil then
 		Guda_CharDB.settings.showQuestBar = true
+	end
+	if Guda_CharDB.settings.showTrackedItems == nil then
+		Guda_CharDB.settings.showTrackedItems = false
+	end
+	if Guda_CharDB.settings.trackedItems == nil then
+		Guda_CharDB.settings.trackedItems = {}
 	end
 	if not Guda_CharDB.settings.bagColumns then
 		Guda_CharDB.settings.bagColumns = 10

@@ -540,6 +540,27 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 		end
     end
 
+    -- Update tracking checkmark
+    local check = getglobal(self:GetName().."_Check")
+    if check then
+        local isTracked = false
+        if self.hasItem and addon.Modules.DB:GetSetting("showTrackedItems") then
+            local itemID = addon.Modules.Utils:ExtractItemID(self.itemData and self.itemData.link)
+            if itemID then
+                local trackedItems = addon.Modules.DB:GetSetting("trackedItems") or {}
+                if trackedItems[itemID] then
+                    isTracked = true
+                end
+            end
+        end
+        
+        if isTracked then
+            check:Show()
+        else
+            check:Hide()
+        end
+    end
+
     -- Resize empty slot background to match icon size (slightly larger to ensure coverage)
     if emptySlotBg then
         emptySlotBg:ClearAllPoints()
@@ -745,6 +766,38 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 				end
 			end
 		end
+
+        -- Handle tracking toggle on click
+        if not self.isReadOnly and not self.otherChar then
+            local old_OnClick = self:GetScript("OnClick")
+            self:SetScript("OnClick", function()
+                if IsControlKeyDown() and addon.Modules.DB:GetSetting("showTrackedItems") then
+                    local itemID = addon.Modules.Utils:ExtractItemID(GetContainerItemLink(this:GetParent():GetID(), this:GetID()))
+                    if itemID then
+                        local trackedItems = addon.Modules.DB:GetSetting("trackedItems") or {}
+                        if trackedItems[itemID] then
+                            trackedItems[itemID] = nil
+                        else
+                            trackedItems[itemID] = true
+                        end
+                        addon.Modules.DB:SetSetting("trackedItems", trackedItems)
+                        
+                        -- Update all item buttons
+                        if Guda.Modules.BagFrame and Guda.Modules.BagFrame.Update then
+                            Guda.Modules.BagFrame:Update()
+                        end
+                        if Guda.Modules.BankFrame and Guda.Modules.BankFrame.Update then
+                            Guda.Modules.BankFrame:Update()
+                        end
+                        if Guda.Modules.TrackedItemBar and Guda.Modules.TrackedItemBar.Update then
+                            Guda.Modules.TrackedItemBar:Update()
+                        end
+                    end
+                elseif old_OnClick then
+                    old_OnClick()
+                end
+            end)
+        end
 
         self:Show()
     else

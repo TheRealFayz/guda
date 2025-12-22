@@ -40,6 +40,15 @@ function Main:Initialize()
                 addon:Error("QuestItemBar module file failed to load (isLoaded is nil)!")
             end
         end
+
+        addon:Debug("Checking TrackedItemBar module...")
+        if addon.Modules.TrackedItemBar and addon.Modules.TrackedItemBar.isLoaded then
+            addon:Debug("TrackedItemBar module found and loaded, initializing...")
+            local success, err = pcall(function() addon.Modules.TrackedItemBar:Initialize() end)
+            if not success then
+                addon:Error("Failed to initialize TrackedItemBar: %s", tostring(err))
+            end
+        end
         
         addon.Modules.SettingsPopup:Initialize()
 
@@ -114,6 +123,14 @@ function Main:SetupSlashCommands()
             addon.Modules.QuestItemBar:Update()
             addon:Print("Quest bar: %s", show and "ON" or "OFF")
 
+        elseif msg == "track" then
+            -- Toggle tracked items
+            local show = not addon.Modules.DB:GetSetting("showTrackedItems")
+            addon.Modules.DB:SetSetting("showTrackedItems", show)
+            if addon.Modules.TrackedItemBar then addon.Modules.TrackedItemBar:Update() end
+            if addon.Modules.BagFrame then addon.Modules.BagFrame:Update() end
+            addon:Print("Track items: %s", show and "ON" or "OFF")
+
         elseif msg == "cleanup" then
             -- Cleanup old characters
             addon.Modules.DB:CleanupOldCharacters()
@@ -125,6 +142,7 @@ function Main:SetupSlashCommands()
             addon:Print("/guda bank - Toggle bank")
             addon:Print("/guda sort - Sort bags")
             addon:Print("/guda sortbank - Sort bank")
+            addon:Print("/guda track - Toggle item tracking")
             addon:Print("/guda debug - Toggle debug mode")
             addon:Print("/guda cleanup - Remove old characters")
 

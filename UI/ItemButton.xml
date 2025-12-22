@@ -28,6 +28,14 @@
                         </Anchor>
                     </Anchors>
                 </FontString>
+                <Texture name="$parent_Check" file="Interface\Buttons\UI-CheckBox-Check" hidden="true">
+                    <Size>
+                        <AbsDimension x="24" y="24"/>
+                    </Size>
+                    <Anchors>
+                        <Anchor point="CENTER"/>
+                    </Anchors>
+                </Texture>
             </Layer>
         </Layers>
 

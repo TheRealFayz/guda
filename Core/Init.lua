@@ -108,6 +108,7 @@ addon.Modules = {
     BagFrame = {},
     BankFrame = {},
     QuestItemBar = {},
+    TrackedItemBar = {},
     SettingsPopup = {},
 }
 
