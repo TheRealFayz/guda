@@ -46,12 +46,16 @@ function DB:Initialize()
 				hideFooter = false,
 				bgTransparency = 0.15,
 				showTrackedItems = true,
+				showTooltipCounts = true,
 				trackedItems = {},
 			},
 		}
 	end
 
 	-- Ensure new settings exist for existing installations
+	if Guda_CharDB.settings.showTooltipCounts == nil then
+		Guda_CharDB.settings.showTooltipCounts = true
+	end
 	if Guda_CharDB.settings.bgTransparency == nil then
 		if Guda_CharDB.settings.frameOpacity ~= nil then
 			Guda_CharDB.settings.bgTransparency = 1.0 - Guda_CharDB.settings.frameOpacity

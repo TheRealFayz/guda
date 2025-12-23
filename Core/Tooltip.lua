@@ -165,6 +165,11 @@ local function GetClassColor(classToken)
 end
 
 function Tooltip:AddInventoryInfo(tooltip, link)
+-- Check if the setting is enabled
+	if not addon.Modules.DB:GetSetting("showTooltipCounts") then
+		return
+	end
+
 -- Check if database is properly initialized and has the expected structure
 	if not Guda_DB or type(Guda_DB) ~= "table" then
 		return

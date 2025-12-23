@@ -120,6 +120,13 @@ function Guda_SettingsPopup_OnShow(self)
     local showSearchBarCheckbox = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
     local showQuestBarCheckbox = getglobal("Guda_SettingsPopup_ShowQuestBarCheckbox")
     local hoverBaglineCheckbox = getglobal("Guda_SettingsPopup_HoverBaglineCheckbox")
+    local hideFooterCheckbox = getglobal("Guda_SettingsPopup_HideFooterCheckbox")
+    local showTooltipCountsCheckbox = getglobal("Guda_SettingsPopup_ShowTooltipCountsCheckbox")
+
+    local showTooltipCounts = Guda.Modules.DB:GetSetting("showTooltipCounts")
+    if showTooltipCounts == nil then
+        showTooltipCounts = true
+    end
 
     if bagSlider then
         bagSlider:SetValue(bagColumns)
@@ -171,6 +178,10 @@ function Guda_SettingsPopup_OnShow(self)
 
     if hoverBaglineCheckbox then
         hoverBaglineCheckbox:SetChecked(hoverBagline and 1 or 0)
+    end
+
+    if showTooltipCountsCheckbox then
+        showTooltipCountsCheckbox:SetChecked(showTooltipCounts and 1 or 0)
     end
 
 
@@ -486,6 +497,9 @@ function Guda_SettingsPopup_LockBagsCheckbox_OnLoad(self)
         end
     end
 
+    -- Tooltip
+    self.tooltipText = L_LOCK_BAGS_TT
+
     local isLocked = false
     if Guda and Guda.Modules and Guda.Modules.DB then
         isLocked = Guda.Modules.DB:GetSetting("lockBags")
@@ -524,6 +538,9 @@ function Guda_SettingsPopup_HideBordersCheckbox_OnLoad(self)
             text:SetFont(font, 13, flags)
         end
     end
+
+    -- Tooltip
+    self.tooltipText = L_HIDE_BORDERS_TT
 
     local hideBorders = false
     if Guda and Guda.Modules and Guda.Modules.DB then
@@ -583,6 +600,9 @@ function Guda_SettingsPopup_QualityBorderEquipmentCheckbox_OnLoad(self)
         end
     end
 
+    -- Tooltip
+    self.tooltipText = L_QUALITY_BORDER_EQ_TT
+
     local showBorders = true
     if Guda and Guda.Modules and Guda.Modules.DB then
         showBorders = Guda.Modules.DB:GetSetting("showQualityBorderEquipment")
@@ -628,6 +648,9 @@ function Guda_SettingsPopup_QualityBorderOtherCheckbox_OnLoad(self)
         end
     end
 
+    -- Tooltip
+    self.tooltipText = L_QUALITY_BORDER_OTHER_TT
+
     local showBorders = true
     if Guda and Guda.Modules and Guda.Modules.DB then
         showBorders = Guda.Modules.DB:GetSetting("showQualityBorderOther")
@@ -672,6 +695,9 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnLoad(self)
             text:SetFont(font, 13, flags)
         end
     end
+
+    -- Tooltip
+    self.tooltipText = L_SHOW_SEARCH_BAR_TT
 
     local showSearchBar = true
     if Guda and Guda.Modules and Guda.Modules.DB then
@@ -727,6 +753,9 @@ function Guda_SettingsPopup_ShowQuestBarCheckbox_OnLoad(self)
         end
     end
 
+    -- Tooltip
+    self.tooltipText = L_SHOW_QUEST_BAR_TT
+
     local showQuestBar = true
     if Guda and Guda.Modules and Guda.Modules.DB then
         showQuestBar = Guda.Modules.DB:GetSetting("showQuestBar")
@@ -765,6 +794,9 @@ function Guda_SettingsPopup_HoverBaglineCheckbox_OnLoad(self)
             text:SetFont(font, 13, flags)
         end
     end
+
+    -- Tooltip
+    self.tooltipText = L_HOVER_BAGLINE_TT
 
     local hoverBagline = false
     if Guda and Guda.Modules and Guda.Modules.DB then
@@ -806,6 +838,9 @@ function Guda_SettingsPopup_HideFooterCheckbox_OnLoad(self)
         end
     end
 
+    -- Tooltip
+    self.tooltipText = L_HIDE_FOOTER_TT
+
     local hideFooter = false
     if Guda and Guda.Modules and Guda.Modules.DB then
         hideFooter = Guda.Modules.DB:GetSetting("hideFooter")
@@ -842,6 +877,43 @@ function Guda_SettingsPopup_HideFooterCheckbox_OnClick(self)
             Guda.Modules.BankFrame:UpdateFooterVisibility()
         end
         Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Show Tooltip Counts Checkbox OnLoad
+function Guda_SettingsPopup_ShowTooltipCountsCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText(L_SHOW_TOOLTIP_COUNTS or "Show Item Counts in Tooltip")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+    
+    -- Tooltip
+    self.tooltipText = L_SHOW_TOOLTIP_COUNTS_TT or "Show how many of this item you have across all your characters in the item tooltip."
+
+    local showTooltipCounts = true
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        showTooltipCounts = Guda.Modules.DB:GetSetting("showTooltipCounts")
+        if showTooltipCounts == nil then
+            showTooltipCounts = true
+        end
+    end
+
+    self:SetChecked(showTooltipCounts and 1 or 0)
+end
+
+-- Show Tooltip Counts Checkbox OnClick
+function Guda_SettingsPopup_ShowTooltipCountsCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("showTooltipCounts", isChecked)
     end
 end
 
