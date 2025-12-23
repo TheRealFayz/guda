@@ -57,15 +57,15 @@ local CATEGORY_ORDER = {
 	["Weapon"] = 4,      -- Non-equippable weapons
 	["Armor"] = 5,       -- Non-equippable armor
 	["Tools"] = 6,
-	["Class Items"] = 7,
 	["Quiver"] = 8,
 	["Reagent"] = 9,
 	["Trade Goods"] = 10,
 	["Recipe"] = 11,
 	["Container"] = 12,
-	["Quest"] = 13,
 	["Key"] = 14,
 	["Miscellaneous"] = 15,
+	["Quest"] = 16,
+	["Class Items"] = 17,
 }
 
 -- Subclass ordering for grouping related items
