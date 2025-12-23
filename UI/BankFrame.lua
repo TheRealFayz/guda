@@ -297,6 +297,11 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
 
         local cat = itemData.class or "Miscellaneous"
 
+        -- Force Quest category if it's a quest item (tooltip scan)
+        if not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID) then
+            cat = "Quest"
+        end
+
         -- Split Equipment into Weapon and Armor
         if itemData.equipSlot and itemData.equipSlot ~= "" then
             if itemData.class == "Weapon" or itemData.class == "Armor" then
@@ -375,7 +380,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5
 
             -- Check if it fits in current row
-            if currentX > 0 and currentX + blockWidth > totalWidth + 5 then
+            if currentX > 0 and currentX + blockWidth + 20 > totalWidth + 5 then
                 currentX = 0
                 currentY = currentY + rowMaxHeight
                 rowMaxHeight = 0
@@ -419,7 +424,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             end
             
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
-            currentX = currentX + blockWidth
+            currentX = currentX + blockWidth + 20
         end
     end
 
@@ -471,7 +476,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 local blockHeight = 20 + (blockRows * (buttonSize + spacing))
 
                 -- Check if it fits in current row (Inline block for bottom sections too)
-                if col > 0 and (col * (buttonSize + spacing)) + blockWidth > totalWidth + 5 then
+                if col > 0 and (col * (buttonSize + spacing)) + blockWidth + 20 > totalWidth + 5 then
                     col = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
@@ -508,10 +513,10 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 end
 
                 if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
-                col = col + blockCols
+                col = col + blockCols + math.ceil(20 / (buttonSize + spacing))
                 
                 -- If we wrapped exactly at the end of a block
-                if col >= perRow then
+                if (col * (buttonSize + spacing)) >= totalWidth then
                     col = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0

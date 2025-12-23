@@ -422,6 +422,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         local cat = itemData.class or "Miscellaneous"
                         local itemName = itemData.name or ""
 
+                        -- Force Quest category if it's a quest item (tooltip scan)
+                        -- For other characters, we rely on the saved class, but for current we can be more accurate
+                        if not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID) then
+                            cat = "Quest"
+                        end
+
                         -- Detect Hearthstone
                         if string.find(itemName, "Hearthstone") then
                             table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
@@ -509,7 +515,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5 -- 20 header, 5 padding
 
             -- Check if it fits in current row
-            if currentX > 0 and currentX + blockWidth > totalWidth + 5 then
+            if currentX > 0 and currentX + blockWidth + 20 > totalWidth + 5 then
                 currentX = 0
                 currentY = currentY + rowMaxHeight
                 rowMaxHeight = 0
@@ -553,7 +559,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             end
             
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
-            currentX = currentX + blockWidth
+            currentX = currentX + blockWidth + 20
         end
     end
 
@@ -605,7 +611,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 local blockHeight = 20 + (blockRows * (buttonSize + spacing))
 
                 -- Check if it fits in current row (Inline block for bottom sections too)
-                if col > 0 and (col * (buttonSize + spacing)) + blockWidth > totalWidth + 5 then
+                if col > 0 and (col * (buttonSize + spacing)) + blockWidth + 20 > totalWidth + 5 then
                     col = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
@@ -642,10 +648,10 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 end
 
                 if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
-                col = col + blockCols
+                col = col + blockCols + math.ceil(20 / (buttonSize + spacing))
                 
                 -- If we wrapped exactly at the end of a block
-                if col >= perRow then
+                if (col * (buttonSize + spacing)) >= totalWidth then
                     col = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
