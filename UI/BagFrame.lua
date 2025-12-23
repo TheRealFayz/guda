@@ -406,6 +406,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         "Weapon", "Armor", "Consumable", "Food", "Drink", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Keyring", "Miscellaneous"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
+    
+    local specialItems = {
+        Hearthstone = {},
+        Mount = {},
+        Tools = {}
+    }
 
     for _, bagID in ipairs(addon.Constants.BAGS) do
         if not hiddenBags[bagID] then
@@ -414,34 +420,48 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
                         local cat = itemData.class or "Miscellaneous"
-                        
+                        local itemName = itemData.name or ""
+
+                        -- Detect Hearthstone
+                        if string.find(itemName, "Hearthstone") then
+                            table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
+                        -- Detect Mounts
+                        elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
+                             table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
+                        -- Detect Tools category
+                        elseif string.find(itemName, "Runed .* Rod") or
+                           string.find(itemName, "Fishing Pole") or
+                           string.find(itemName, "Mining Pick") or
+                           string.find(itemName, "Blacksmith Hammer") or
+                           itemName == "Arclight Spanner" or
+                           itemName == "Gyromatic Micro-Adjustor" or
+                           itemName == "Philosopher's Stone" or
+                           string.find(itemName, "Skinning Knife") or
+                           itemName == "Blood Scythe" then
+                            table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
                         -- Split Equipment into Weapon and Armor
-                        if itemData.equipSlot and itemData.equipSlot ~= "" then
+                        elseif itemData.equipSlot and itemData.equipSlot ~= "" then
                             if itemData.class == "Weapon" or itemData.class == "Armor" then
                                 cat = itemData.class
                             else
                                 cat = "Armor" -- Accessories etc usually fall here if equippable
                             end
-                        end
-
+                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
                         -- Detect Food and Drink
-                        if itemData.class == "Consumable" then
+                        elseif itemData.class == "Consumable" then
                             local sub = itemData.subclass or ""
                             if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
-                                -- Try to be more specific if possible, but "Food & Drink" is the standard subclass
-                                -- For simplicity we can check item name or texture if we wanted to split, 
-                                -- but user asked for "Food", "Drink".
-                                -- If we can't easily distinguish, we'll put them in "Food" or "Drink" based on subclass text
                                 if string.find(sub, "Drink") then
                                     cat = "Drink"
                                 else
                                     cat = "Food"
                                 end
                             end
+                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+                        else
+                            if not categories[cat] then cat = "Miscellaneous" end
+                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
                         end
-
-                        if not categories[cat] then cat = "Miscellaneous" end
-                        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
                     end
                 end
             end
@@ -461,13 +481,16 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     end
 
     -- Layout
-    local x, y = 10, -10
+    local startX, startY = 10, -10
+    local currentX, currentY = 0, 0
+    local rowMaxHeight = 0
     local headerIdx = 1
-    local totalHeight = 20
+    local totalWidth = perRow * (buttonSize + spacing)
 
     for _, catName in ipairs(categoryList) do
         local items = categories[catName]
-        if items and table.getn(items) > 0 then
+        local numItems = items and table.getn(items) or 0
+        if numItems > 0 then
             -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
                 if a.itemData.subclass ~= b.itemData.subclass then
@@ -479,17 +502,30 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 return (a.itemData.name or "") < (b.itemData.name or "")
             end)
 
+            local blockCols = numItems
+            if blockCols > perRow then blockCols = perRow end
+            local blockRows = math.ceil(numItems / perRow)
+            local blockWidth = blockCols * (buttonSize + spacing)
+            local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5 -- 20 header, 5 padding
+
+            -- Check if it fits in current row
+            if currentX > 0 and currentX + blockWidth > totalWidth + 5 then
+                currentX = 0
+                currentY = currentY + rowMaxHeight
+                rowMaxHeight = 0
+            end
+
             -- Add Header
             local header = self:GetSectionHeader(headerIdx)
             headerIdx = headerIdx + 1
-            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", 0, y)
-            header:SetWidth(perRow * (buttonSize + spacing))
+            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", startX + currentX, startY - currentY)
+            header:SetWidth(blockWidth)
             header.text:SetText(catName)
             header:Show()
             
-            y = y - 20
-            
+            local itemY = currentY + 20
             local col = 0
+            local row = 0
             for _, item in ipairs(items) do
                 local bagID = item.bagID
                 local slot = item.slotID
@@ -502,28 +538,123 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 button:SetWidth(buttonSize)
                 button:SetHeight(buttonSize)
                 button:ClearAllPoints()
-                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", startX + currentX + (col * (buttonSize + spacing)), startY - (itemY + (row * (buttonSize + spacing))))
                 button:Show()
                 
-                local matchesFilter = true
-                if searchText ~= "" then
-                    matchesFilter = BagFrame:MatchesSearch(itemData, searchText)
-                end
-                
-                Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, matchesFilter, true)
+                local matchesFilter = self:PassesSearchFilter(itemData)
+                Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, matchesFilter, isOtherChar)
                 button.inUse = true
                 
                 col = col + 1
-                if col >= perRow then
+                if col >= blockCols then
                     col = 0
-                    y = y - (buttonSize + spacing)
+                    row = row + 1
                 end
             end
             
-            if col > 0 then
-                y = y - (buttonSize + spacing)
+            if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
+            currentX = currentX + blockWidth
+        end
+    end
+
+    -- Update Y for bottom sections
+    local y = currentY + rowMaxHeight
+    
+    -- Special sections at bottom (Hearthstone, Mount, Tools)
+    local bottomSections = {
+        { name = "Home", items = specialItems.Hearthstone },
+        { name = "Mounts", items = specialItems.Mount },
+        { name = "Tools", items = specialItems.Tools }
+    }
+    
+    local x = startX
+    y = startY - y -- convert to coordinate relative to TOPLEFT
+    
+    -- Add spacing before special section
+    local hasAnyBottom = false
+    for _, sec in ipairs(bottomSections) do
+        if table.getn(sec.items) > 0 then
+            hasAnyBottom = true
+            break
+        end
+    end
+
+    if hasAnyBottom then
+        y = y - 10
+        local col = 0
+        local sectionMaxHeight = 0
+
+        for _, sec in ipairs(bottomSections) do
+            local items = sec.items
+            local numItems = table.getn(items)
+            if numItems > 0 then
+                -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
+                if sec.name == "Tools" then
+                    table.sort(items, function(a, b)
+                        if a.itemData.quality ~= b.itemData.quality then
+                            return a.itemData.quality > b.itemData.quality
+                        end
+                        return (a.itemData.name or "") < (b.itemData.name or "")
+                    end)
+                end
+
+                local blockCols = numItems
+                if blockCols > perRow then blockCols = perRow end
+                local blockRows = math.ceil(numItems / perRow)
+                local blockWidth = blockCols * (buttonSize + spacing)
+                local blockHeight = 20 + (blockRows * (buttonSize + spacing))
+
+                -- Check if it fits in current row (Inline block for bottom sections too)
+                if col > 0 and (col * (buttonSize + spacing)) + blockWidth > totalWidth + 5 then
+                    col = 0
+                    y = y - sectionMaxHeight - 5
+                    sectionMaxHeight = 0
+                end
+
+                -- Add Header
+                local header = self:GetSectionHeader(headerIdx)
+                headerIdx = headerIdx + 1
+                header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                header:SetWidth(blockWidth)
+                header.text:SetText(sec.name)
+                header:Show()
+
+                local itemY = y - 20
+                local sCol = 0
+                local sRow = 0
+                for _, item in ipairs(items) do
+                    local bagParent = self:GetBagParent(item.bagID)
+                    local button = Guda_GetItemButton(bagParent)
+                    button:SetParent(bagParent)
+                    button:SetWidth(buttonSize)
+                    button:SetHeight(buttonSize)
+                    button:ClearAllPoints()
+                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + ((col + sCol) * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                    button:Show()
+                    Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar)
+                    button.inUse = true
+                    
+                    sCol = sCol + 1
+                    if sCol >= blockCols then
+                        sCol = 0
+                        sRow = sRow + 1
+                    end
+                end
+
+                if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
+                col = col + blockCols
+                
+                -- If we wrapped exactly at the end of a block
+                if col >= perRow then
+                    col = 0
+                    y = y - sectionMaxHeight - 5
+                    sectionMaxHeight = 0
+                end
             end
-            y = y - 5 -- Padding between sections
+        end
+        
+        if col > 0 then
+            y = y - sectionMaxHeight
         end
     end
 

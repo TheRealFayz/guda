@@ -259,10 +259,44 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
 
+    local specialItems = {
+        Hearthstone = {},
+        Mount = {},
+        Tools = {}
+    }
+
     -- Helper to assign category
-    local function GetItemCategory(itemData)
+    local function CategorizeItem(itemData, bagID, slotID)
+        local itemName = itemData.name or ""
+
+        -- Detect Hearthstone
+        if string.find(itemName, "Hearthstone") then
+            table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
+            return
+        end
+
+        -- Detect Mounts
+        if addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
+            table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
+            return
+        end
+
+        -- Detect Tools category
+        if string.find(itemName, "Runed .* Rod") or
+           string.find(itemName, "Fishing Pole") or
+           string.find(itemName, "Mining Pick") or
+           string.find(itemName, "Blacksmith Hammer") or
+           itemName == "Arclight Spanner" or
+           itemName == "Gyromatic Micro-Adjustor" or
+           itemName == "Philosopher's Stone" or
+           string.find(itemName, "Skinning Knife") or
+           itemName == "Blood Scythe" then
+            table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
+            return
+        end
+
         local cat = itemData.class or "Miscellaneous"
-        
+
         -- Split Equipment into Weapon and Armor
         if itemData.equipSlot and itemData.equipSlot ~= "" then
             if itemData.class == "Weapon" or itemData.class == "Armor" then
@@ -285,7 +319,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
         end
 
         if not categories[cat] then cat = "Miscellaneous" end
-        return cat
+        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
     end
 
     -- Bank main slots (bagID -1)
@@ -293,8 +327,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     if bankMain and bankMain.slots then
         for slotID, itemData in pairs(bankMain.slots) do
             if itemData then
-                local cat = GetItemCategory(itemData)
-                table.insert(categories[cat], {bagID = -1, slotID = slotID, itemData = itemData})
+                CategorizeItem(itemData, -1, slotID)
             end
         end
     end
@@ -306,8 +339,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             if bag and bag.slots then
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
-                        local cat = GetItemCategory(itemData)
-                        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+                        CategorizeItem(itemData, bagID, slotID)
                     end
                 end
             end
@@ -315,12 +347,16 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     end
 
     -- Layout
-    local x, y = 5, -10
+    local startX, startY = 5, -10
+    local currentX, currentY = 0, 0
+    local rowMaxHeight = 0
     local headerIdx = 1
+    local totalWidth = perRow * (buttonSize + spacing)
     
     for _, catName in ipairs(categoryList) do
         local items = categories[catName]
-        if items and table.getn(items) > 0 then
+        local numItems = items and table.getn(items) or 0
+        if numItems > 0 then
             -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
                 if a.itemData.subclass ~= b.itemData.subclass then
@@ -332,17 +368,30 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 return (a.itemData.name or "") < (b.itemData.name or "")
             end)
 
+            local blockCols = numItems
+            if blockCols > perRow then blockCols = perRow end
+            local blockRows = math.ceil(numItems / perRow)
+            local blockWidth = blockCols * (buttonSize + spacing)
+            local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5
+
+            -- Check if it fits in current row
+            if currentX > 0 and currentX + blockWidth > totalWidth + 5 then
+                currentX = 0
+                currentY = currentY + rowMaxHeight
+                rowMaxHeight = 0
+            end
+
             -- Add Header
             local header = self:GetSectionHeader(headerIdx)
             headerIdx = headerIdx + 1
-            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", 0, y)
-            header:SetWidth(perRow * (buttonSize + spacing))
+            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", startX + currentX, startY - currentY)
+            header:SetWidth(blockWidth)
             header.text:SetText(catName)
             header:Show()
             
-            y = y - 20
-            
+            local itemY = currentY + 20
             local col = 0
+            local row = 0
             for _, item in ipairs(items) do
                 local bagID = item.bagID
                 local slot = item.slotID
@@ -355,28 +404,126 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 button:SetWidth(buttonSize)
                 button:SetHeight(buttonSize)
                 button:ClearAllPoints()
-                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", startX + currentX + (col * (buttonSize + spacing)), startY - (itemY + (row * (buttonSize + spacing))))
                 button:Show()
                 
                 local matchesFilter = self:PassesSearchFilter(itemData)
-                
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, true)
                 button.inUse = true
                 
                 col = col + 1
-                if col >= perRow then
+                if col >= blockCols then
                     col = 0
-                    y = y - (buttonSize + spacing)
+                    row = row + 1
                 end
             end
             
-            if col > 0 then
-                y = y - (buttonSize + spacing)
-            end
-            y = y - 5 -- Padding between sections
+            if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
+            currentX = currentX + blockWidth
         end
     end
 
+    -- Update Y for bottom sections
+    local y = currentY + rowMaxHeight
+    
+    -- Special sections at bottom (Hearthstone, Mount, Tools)
+    local bottomSections = {
+        { name = "Home", items = specialItems.Hearthstone },
+        { name = "Mounts", items = specialItems.Mount },
+        { name = "Tools", items = specialItems.Tools }
+    }
+    
+    local x = startX
+    y = startY - y -- convert to coordinate relative to TOPLEFT
+    
+    -- Add spacing before special section
+    local hasAnyBottom = false
+    for _, sec in ipairs(bottomSections) do
+        if table.getn(sec.items) > 0 then
+            hasAnyBottom = true
+            break
+        end
+    end
+
+    if hasAnyBottom then
+        y = y - 10
+        local col = 0
+        local sectionMaxHeight = 0
+
+        for _, sec in ipairs(bottomSections) do
+            local items = sec.items
+            local numItems = table.getn(items)
+            if numItems > 0 then
+                -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
+                if sec.name == "Tools" then
+                    table.sort(items, function(a, b)
+                        if a.itemData.quality ~= b.itemData.quality then
+                            return a.itemData.quality > b.itemData.quality
+                        end
+                        return (a.itemData.name or "") < (b.itemData.name or "")
+                    end)
+                end
+
+                local blockCols = numItems
+                if blockCols > perRow then blockCols = perRow end
+                local blockRows = math.ceil(numItems / perRow)
+                local blockWidth = blockCols * (buttonSize + spacing)
+                local blockHeight = 20 + (blockRows * (buttonSize + spacing))
+
+                -- Check if it fits in current row (Inline block for bottom sections too)
+                if col > 0 and (col * (buttonSize + spacing)) + blockWidth > totalWidth + 5 then
+                    col = 0
+                    y = y - sectionMaxHeight - 5
+                    sectionMaxHeight = 0
+                end
+
+                -- Add Header
+                local header = self:GetSectionHeader(headerIdx)
+                headerIdx = headerIdx + 1
+                header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                header:SetWidth(blockWidth)
+                header.text:SetText(sec.name)
+                header:Show()
+
+                local itemY = y - 20
+                local sCol = 0
+                local sRow = 0
+                for _, item in ipairs(items) do
+                    local bagParent = self:GetBagParent(item.bagID)
+                    local button = Guda_GetItemButton(bagParent)
+                    button:SetParent(bagParent)
+                    button:SetWidth(buttonSize)
+                    button:SetHeight(buttonSize)
+                    button:ClearAllPoints()
+                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + ((col + sCol) * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                    button:Show()
+                    Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, true, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), true)
+                    button.inUse = true
+                    
+                    sCol = sCol + 1
+                    if sCol >= blockCols then
+                        sCol = 0
+                        sRow = sRow + 1
+                    end
+                end
+
+                if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
+                col = col + blockCols
+                
+                -- If we wrapped exactly at the end of a block
+                if col >= perRow then
+                    col = 0
+                    y = y - sectionMaxHeight - 5
+                    sectionMaxHeight = 0
+                end
+            end
+        end
+        
+        if col > 0 then
+            y = y - sectionMaxHeight
+        end
+    end
+    
     -- Update container height
     local finalHeight = math.abs(y) + 20
     itemContainer:SetHeight(finalHeight)
