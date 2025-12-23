@@ -442,6 +442,34 @@ local function ExtractHyperlink(itemLink)
     return hyperlink
 end
 
+-- Detect if a consumable has 'Use: Restores' or mentions 'while eating'/'while drinking'
+function Utils:GetConsumableRestoreTag(bagID, slotID)
+    if not bagID or not slotID then return nil end
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetBagItem(bagID, slotID)
+    local tag = nil
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                local tl = string.lower(text)
+                if string.find(tl, "while eating") then
+                    tag = "eat"
+                    break
+                elseif string.find(tl, "while drinking") then
+                    tag = "drink"
+                    break
+                elseif string.find(tl, "use: restores") then
+                    tag = "restore"
+                end
+            end
+        end
+    end
+    return tag
+end
+
 -- Check if item is Arrow or Bullet (for Quiver routing)
 function Utils:IsArrowOrBullet(itemType)
 	if not itemType then return false end

@@ -434,6 +434,14 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         local cat = "Miscellaneous"
                         local itemName = itemData.name or ""
 
+                        -- Detect consumable restore/eat/drink tag for current character only
+                        if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.GetConsumableRestoreTag then
+                            local tag = addon.Modules.Utils:GetConsumableRestoreTag(bagID, slotID)
+                            if tag then
+                                itemData.restoreTag = tag
+                            end
+                        end
+
                         -- Priority 1: Special items (Hearthstone, Mounts, Tools)
                         if string.find(itemName, "Hearthstone") then
                             table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
@@ -541,6 +549,19 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         if numItems > 0 then
             -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
+                -- Priority: consumable restore tags (eat > drink > restore > nil)
+                local pa = a.itemData and a.itemData.restoreTag or nil
+                local pb = b.itemData and b.itemData.restoreTag or nil
+                local function pr(t)
+                    if t == "eat" then return 3 end
+                    if t == "drink" then return 2 end
+                    if t == "restore" then return 1 end
+                    return 0
+                end
+                if pr(pa) ~= pr(pb) then
+                    return pr(pa) > pr(pb)
+                end
+                -- Fallback: subclass, quality, name
                 if a.itemData.subclass ~= b.itemData.subclass then
                     return (a.itemData.subclass or "") < (b.itemData.subclass or "")
                 end
