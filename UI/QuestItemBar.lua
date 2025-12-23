@@ -69,54 +69,11 @@ function QuestItemBar:ScanForQuestItems()
         end
     end
 
-    -- If no items found via direct scan, try fallback to database
-    if not foundAny then
-        local playerName = UnitName("player")
-        local playerRealm = GetRealmName()
-        local fullName = playerName .. "-" .. playerRealm
-        
-        if Guda_DB and Guda_DB.characters and Guda_DB.characters[fullName] and Guda_DB.characters[fullName].bags then
-            local bags = Guda_DB.characters[fullName].bags
-            for bagID = 0, 4 do
-                if bags[bagID] and bags[bagID].slots then
-                    for slotID, item in pairs(bags[bagID].slots) do
-                        if item and item.texture then
-                            -- We can't easily check tooltips for database items without them being in bags,
-                            -- but if we're here, it means the bags ARE actually empty or not loaded yet.
-                            -- However, the user said "if its hard to define what items I've got in bag you can get from database".
-                            -- We'll try to validate them if possible.
-                            local isQuest = false
-                            
-                            -- Use ID-based check for DB items
-                            if item.link then
-                                local itemID = addon.Modules.Utils:ExtractItemID(item.link)
-                                if itemID then
-                                    local _, _, _, _, itemCategory, itemType = addon.Modules.Utils:GetItemInfoSafe(itemID)
-                                    if itemCategory == "Quest" or itemType == "Quest" then
-                                        isQuest = true
-                                        -- Note: We can't easily know if it's usable from DB alone without tooltip scan,
-                                        -- but we'll assume it might be if it's a quest item.
-                                        -- To be safe, we only add it if we can verify it's a quest item.
-                                    end
-                                end
-                            end
+    -- Disabled DB fallback: only show items actually present in bags and usable
+    -- Fallback to database caused non-usable quest items to be shown in the bar
+    -- Returning early to ensure only real, usable items from bags are considered
+    return
 
-                            if isQuest then
-                                table.insert(questItems, {
-                                    bagID = bagID,
-                                    slotID = slotID,
-                                    texture = item.texture,
-                                    count = item.count or 1,
-                                    link = item.link,
-                                    fromDB = true
-                                })
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
 end
 
 -- Local implementation of IsQuestItem (similar to the one in ItemButton.lua)
@@ -217,7 +174,8 @@ function QuestItemBar:Update()
     -- Used to keep track of which bag items are already displayed
     local usedBagSlots = {}
 
-    for i = 1, 2 do
+    local slots = math.min(2, table.getn(questItems or {}))
+    for i = 1, slots do
         local index = i
         local button = buttons[i]
         if not button then
@@ -402,8 +360,17 @@ function QuestItemBar:Update()
         end
     end
     
-    -- Fixed width for 2 slots
-    local newWidth = xOffset * 2 + 2 * (buttonSize + spacing) - spacing
+    -- Hide any extra buttons beyond current slots
+    for j = slots + 1, table.getn(buttons) do
+        local extra = buttons[j]
+        if extra then
+            extra:Hide()
+            extra.hasItem = false
+        end
+    end
+
+    -- Fixed width for current number of slots
+    local newWidth = xOffset * 2 + slots * (buttonSize + spacing) - spacing
     frame:SetWidth(newWidth)
 end
 
@@ -486,8 +453,7 @@ function QuestItemBar:UpdateFlyout(parent)
     -- Collect items not in main buttons
     local displayItems = {}
     local mainItemIDs = {}
-    for i = 1, 2 do
-        local btn = buttons[i]
+    for _, btn in ipairs(buttons) do
         if btn and btn.hasItem and btn.itemData and btn.itemData.link then
             local id = addon.Modules.Utils:ExtractItemID(btn.itemData.link)
             if id then mainItemIDs[id] = true end
