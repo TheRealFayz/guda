@@ -564,6 +564,11 @@ local function AddSortKeys(items)
 
 				-- Texture pattern for grouping similar items (especially trade goods)
 				item.texturePattern = GetTexturePattern(itemTexture)
+				-- Group Trade Goods that are meats/eggs together regardless of texture
+				local nameLower = item.itemName and string.lower(item.itemName) or ""
+				if itemType == "Trade Goods" and (string.find(nameLower, "meat") or string.find(nameLower, "egg")) then
+					item.texturePattern = "trade_meat_egg"
+				end
 
 				-- Inverted values for descending sorts
 				item.invertedQuality = -(tonumber(itemRarity) or 0)
