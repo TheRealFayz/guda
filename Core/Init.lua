@@ -236,4 +236,10 @@ function addon:Error(msg, a1, a2, a3, a4, a5, a6, a7)
     DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000[Error]|r |cFF00FF96Guda:|r " .. text)
 end
 
+-- Add frames to UISpecialFrames so they can be closed with the Escape key
+if not UISpecialFrames then UISpecialFrames = {} end
+table.insert(UISpecialFrames, "Guda_BagFrame")
+table.insert(UISpecialFrames, "Guda_BankFrame")
+table.insert(UISpecialFrames, "Guda_SettingsPopup")
+
 addon:Print("Loaded v%s", addon.VERSION)
