@@ -509,6 +509,18 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             displayTexture = liveTexture
             displayCount = liveCount
             self.hasItem = true
+        elseif bagID == -2 then
+            -- Fallback for keyring in 1.12.1
+            local link = GetContainerItemLink(bagID, slotID)
+            if link then
+                self.hasItem = true
+                -- We might not have the texture from GetContainerItemInfo, try to get it from GetItemInfo
+                local _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(link)
+                displayTexture = itemTexture
+                displayCount = 1 -- Keyring items are usually unique anyway
+            else
+                self.hasItem = false
+            end
         else
             -- No item in this slot (even if itemData has cached data)
             self.hasItem = false
@@ -954,6 +966,14 @@ function Guda_ItemButton_OnEnter(self)
 		elseif self.itemData and self.itemData.link then
 			-- Bank is closed - use cached link
 			GameTooltip:SetHyperlink(self.itemData.link)
+		end
+	elseif self.bagID == -2 then
+		-- Keyring: SetBagItem might be unreliable for -2 in some 1.12.1 environments, fallback to hyperlink if needed
+		local link = GetContainerItemLink(self.bagID, self.slotID)
+		if link then
+			GameTooltip:SetHyperlink(link)
+		else
+			GameTooltip:SetBagItem(self.bagID, self.slotID)
 		end
 	else
 		-- For live mode: use SetBagItem for all bags
