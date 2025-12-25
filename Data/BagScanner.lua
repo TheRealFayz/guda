@@ -75,6 +75,7 @@ function BagScanner:ScanSlot(bagID, slot)
         quality = quality or itemQuality or 0,
         name = name,
         iLevel = iLevel,
+        type = itemType,
         class = itemCategory,      -- Category (e.g., "Consumable", "Armor")
         subclass = itemSubType,    -- SubType (e.g., "Potion", "Cloth")
         equipSlot = itemEquipLoc,  -- Equipment slot (e.g., "INVTYPE_HEAD") - correct now!

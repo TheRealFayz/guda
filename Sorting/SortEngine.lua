@@ -753,6 +753,7 @@ local function CollectItems(bagIDs)
 							quality = quality or 0,
 							name = name,
 							iLevel = iLevel,
+							type = itemType,
 							class = category,
 							subclass = subType,  -- NOW INCLUDED!
 							locked = locked,

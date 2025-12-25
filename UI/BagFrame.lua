@@ -433,7 +433,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                     if itemData then
                         local cat = "Miscellaneous"
                         local itemName = itemData.name or ""
-
+						local itemType = itemData.type or ""
                         -- Detect consumable restore/eat/drink tag for current character only
                         if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.GetConsumableRestoreTag then
                             local tag = addon.Modules.Utils:GetConsumableRestoreTag(bagID, slotID)
@@ -448,7 +448,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
                              table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
                         elseif string.find(itemName, "Runed .* Rod") or
-                           string.find(itemName, "Fishing Pole") or
+                           itemType == "Fishing Pole" or
                            string.find(itemName, "Mining Pick") or
                            string.find(itemName, "Blacksmith Hammer") or
                            itemName == "Arclight Spanner" or
@@ -1105,7 +1105,7 @@ function BagFrame:PassesSearchFilter(itemData)
 	-- Advanced search (pfUI style categories)
 	if string.sub(search, 1, 1) == "~" then
 		local category = string.sub(search, 2)
-		local itemType = itemData.type or ""
+		local itemType = itemData.class or ""
 		local itemQuality = itemData.quality or -1
 
 		if category == "equipment" or category == "armor" or category == "weapon" then
