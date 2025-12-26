@@ -447,13 +447,18 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
     self.bagID = bagID
     self.slotID = slotID
     -- Also set the Blizzard slot ID for compatibility with ContainerFrameItemButtonTemplate behavior
-    if self.SetID and slotID then
-        self:SetID(slotID)
+    -- ALWAYS set ID to something (0 if nil) to avoid leaking old IDs when button is reused
+    if self.SetID then
+        self:SetID(slotID or 0)
     end
+    -- Explicitly set bag index to avoid Blizzard's ContainerFrameItemButton_OnEnter logic
+    -- from picking up this button as part of a real bag.
+    self.bagIndex = bagID or -100 -- Use an invalid bag index for non-bag buttons
     self.itemData = itemData
     self.isBank = isBank or false
     self.otherChar = otherCharName
     self.isReadOnly = isReadOnly or false  -- Track if this is read-only mode
+    self.isMail = false -- Clear mailbox flag by default
 
     -- Re-register for drag/drop every time (crucial for button reuse in Classic/Vanilla)
     if not self.isReadOnly and not self.otherChar then
@@ -538,7 +543,17 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
     -- Apply the determined texture and count
     if self.hasItem then
-        if SetItemButtonTexture then SetItemButtonTexture(self, displayTexture) end
+        if SetItemButtonTexture then 
+            SetItemButtonTexture(self, displayTexture) 
+        end
+        
+        -- Explicitly set and show icon texture as SetItemButtonTexture can be unreliable for custom paths in 1.12
+        local iconTexture = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
+        if iconTexture and displayTexture then
+            iconTexture:SetTexture(displayTexture)
+            iconTexture:Show()
+        end
+
         if SetItemButtonCount then SetItemButtonCount(self, displayCount or 1) end
         if emptySlotBg then emptySlotBg:Hide() end
         -- Update cooldown overlay for live items
@@ -624,6 +639,9 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
     -- For 1.12.1 compatibility, access textures using both methods and proper naming
     -- We'll set the NormalTexture later based on whether slot is empty or filled
+
+    -- ICON TEXTURE: Ensure we use the correct name ($parentIconTexture is standard)
+    local iconTexture = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
 
     -- Pushed texture follows the button size/position
     local pushedTexture = getglobal(self:GetName().."PushedTexture")
@@ -920,8 +938,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 self.questIcon:ClearAllPoints()
                 self.questIcon:SetPoint("TOPRIGHT", self, "TOPRIGHT", 1, 0)
             end
-        else
-            -- Hide icon for empty slots
+        elseif not self.isMail then
+            -- Hide icon for empty slots, but keep it for mailbox custom icons
             iconTexture:Hide()
         end
     end
@@ -929,6 +947,16 @@ end
 
 -- OnEnter handler (show tooltip)
 function Guda_ItemButton_OnEnter(self)
+    -- DETACH from Blizzard's internal tooltip logic for mailbox items
+    if self.isMail or this.isMail or (this:GetParent() and this:GetParent():GetName() == "Guda_MailboxFrame_ItemContainer") then
+        return
+    end
+
+    -- Prevent Blizzard's ContainerFrameItemButton_OnEnter from running if it somehow got through
+    if not self.bagID or self.bagID == -100 then
+        return
+    end
+
 -- Highlight the corresponding bag button in the footer (works for empty and filled slots)
 	if not self.otherChar and self.bagID then
 		if self.isBank then

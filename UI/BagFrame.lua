@@ -1578,6 +1578,119 @@ local function HideCharacterDropdown()
 	end
 end
 
+-- Toggle mail dropdown
+function Guda_BagFrame_ToggleMailDropdown(button)
+-- Hide character dropdown if it's shown
+	if characterDropdown and characterDropdown:IsShown() then
+		characterDropdown:Hide()
+	end
+
+	if bankDropdown and bankDropdown:IsShown() then
+		bankDropdown:Hide()
+	end
+
+	if mailDropdown and mailDropdown:IsShown() then
+		mailDropdown:Hide()
+		return
+	end
+
+	if not mailDropdown then
+	-- Create dropdown frame
+		mailDropdown = CreateFrame("Frame", "Guda_MailDropdown", UIParent)
+		mailDropdown:SetFrameStrata("DIALOG")
+		mailDropdown:SetWidth(200)
+		mailDropdown:SetBackdrop({
+			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+			edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+			tile = true,
+			tileSize = 16,
+			edgeSize = 16,
+			insets = { left = 4, right = 4, top = 4, bottom = 4 }
+		})
+		mailDropdown:SetBackdropColor(0, 0, 0, 0.95)
+		mailDropdown:EnableMouse(true)
+		mailDropdown:Hide()
+
+		mailDropdown.buttons = {}
+	end
+
+	-- Position dropdown below the button
+	mailDropdown:ClearAllPoints()
+	mailDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
+	-- Clear existing buttons
+	for _, btn in ipairs(mailDropdown.buttons) do
+		btn:Hide()
+	end
+	mailDropdown.buttons = {}
+
+	-- Get all characters on current realm
+	local chars = addon.Modules.DB:GetAllCharacters(false, true)
+
+	local yOffset = -8
+
+	-- Add character buttons
+	for _, char in ipairs(chars) do
+	-- Capture variables in local scope for closure
+		local charFullName = char.fullName
+		local charName = char.name
+		local charClassToken = char.classToken
+
+		local charButton = CreateFrame("Button", nil, mailDropdown)
+		charButton:SetWidth(188)
+		charButton:SetHeight(20)
+		charButton:SetPoint("TOP", mailDropdown, "TOP", 0, yOffset)
+
+		-- Button background on hover
+		local charBg = charButton:CreateTexture(nil, "BACKGROUND")
+		charBg:SetAllPoints()
+		charBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+		charBg:SetBlendMode("ADD")
+		charBg:SetAlpha(0)
+
+		-- Get class color
+		local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
+		local r, g, b = 1, 1, 1
+		if classColor then
+			r, g, b = classColor.r, classColor.g, classColor.b
+		end
+
+		-- Button text
+		local charText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		charText:SetPoint("LEFT", charButton, "LEFT", 8, 0)
+		charText:SetText(charName)
+		charText:SetTextColor(r, g, b)
+
+		-- Button scripts
+		charButton:SetScript("OnEnter", function()
+			charBg:SetAlpha(0.3)
+		end)
+		charButton:SetScript("OnLeave", function()
+			charBg:SetAlpha(0)
+		end)
+		charButton:SetScript("OnClick", function()
+			if charFullName then
+			-- Show mailbox for this character
+				addon.Modules.MailboxFrame:ShowCharacter(charFullName)
+				if not Guda_MailboxFrame:IsShown() then
+					Guda_MailboxFrame:Show()
+				end
+				mailDropdown:Hide()
+			else
+				addon:Print("Error: Character fullName is nil")
+			end
+		end)
+
+		table.insert(mailDropdown.buttons, charButton)
+		yOffset = yOffset - 20
+	end
+
+	-- Set dropdown height based on content
+	mailDropdown:SetHeight(math.abs(yOffset) + 8)
+
+	-- Show dropdown
+	mailDropdown:Show()
+end
+
 -- Toggle bank dropdown
 function Guda_BagFrame_ToggleBankDropdown(button)
 -- Hide character dropdown if it's shown

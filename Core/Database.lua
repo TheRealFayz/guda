@@ -131,6 +131,7 @@ function DB:Initialize()
 			money = 0,
 			bags = {},
 			bank = {},
+			mailbox = {},   -- Add mailbox storage
 			equipped = {},  -- Add equipped items storage
 			character = {}, -- Add character info storage
 			lastUpdate = time(),
@@ -152,6 +153,10 @@ function DB:Initialize()
 		if not char.character then
 			char.character = {}
 			addon:Debug("Added character field to existing character")
+		end
+		if not char.mailbox then
+			char.mailbox = {}
+			addon:Debug("Added mailbox field to existing character")
 		end
 	end
 
@@ -215,6 +220,16 @@ function DB:SaveMoney(copper)
 	end
 end
 
+-- Save mailbox data
+function DB:SaveMailbox(mailboxData)
+	local char = self:GetCurrentCharacter()
+	if char then
+		char.mailbox = mailboxData
+		char.lastUpdate = time()
+		addon:Debug("Saved mailbox data")
+	end
+end
+
 -- Get all characters (optionally filter by faction and/or realm)
 function DB:GetAllCharacters(sameFactionOnly, currentRealmOnly)
 	local chars = {}
@@ -254,6 +269,12 @@ end
 function DB:GetCharacterBank(fullName)
 	local char = Guda_DB.characters[fullName]
 	return char and char.bank or {}
+end
+
+-- Get character's mailbox
+function DB:GetCharacterMailbox(fullName)
+	local char = Guda_DB.characters[fullName]
+	return char and char.mailbox or {}
 end
 
 -- Get character's equipped items

@@ -248,6 +248,52 @@
                 </Scripts>
             </Button>
 
+            <!-- Mail Button (header left, next to bank) -->
+            <Button name="$parent_MailButton">
+                <Size>
+                    <AbsDimension x="24" y="24"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankButton">
+                        <Offset>
+                            <AbsDimension x="2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="$parent_Icon">
+                            <Size>
+                                <AbsDimension x="20" y="20"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                            <Color r="0.8" g="0.8" b="0.8"/>
+                        </Texture>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnLoad>
+                        local icon = getglobal(this:GetName().."_Icon")
+                        if icon then
+                            icon:SetTexture("Interface\\Icons\\INV_Letter_15")
+                        end
+                    </OnLoad>
+                    <OnClick>
+                        Guda_BagFrame_ToggleMailDropdown(this)
+                    </OnClick>
+                    <OnEnter>
+                        GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                        GameTooltip:SetText("View Mailbox")
+                        GameTooltip:Show()
+                    </OnEnter>
+                    <OnLeave>
+                        GameTooltip:Hide()
+                    </OnLeave>
+                </Scripts>
+            </Button>
+
             <!-- Toolbar Container (for money tooltip and bag slots) -->
             <Frame name="$parent_Toolbar" enableMouse="true">
                 <Size>

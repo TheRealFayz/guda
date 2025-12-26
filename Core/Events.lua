@@ -79,3 +79,11 @@ end
 function Events:OnPlayerLogout(callback, owner)
     self:Register("PLAYER_LOGOUT", callback, owner)
 end
+
+function Events:OnMailShow(callback, owner)
+    self:Register("MAIL_SHOW", callback, owner)
+end
+
+function Events:OnMailClosed(callback, owner)
+    self:Register("MAIL_CLOSED", callback, owner)
+end

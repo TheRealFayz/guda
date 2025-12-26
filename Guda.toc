@@ -16,6 +16,7 @@ Core\Tooltip.lua
 
 Data\BagScanner.lua
 Data\BankScanner.lua
+Data\MailboxScanner.lua
 Data\MoneyTracker.lua
 Data\EquipmentScanner.lua
 
@@ -25,12 +26,14 @@ Sorting\SortEngine.lua
 UI\ItemButton.lua
 UI\BagFrame.lua
 UI\BankFrame.lua
+UI\MailboxFrame.lua
 UI\QuestItemBar.lua
 UI\TrackedItemBar.lua
 UI\SettingsPopup.lua
 UI\ItemButton.xml
 UI\BagFrame.xml
 UI\BankFrame.xml
+UI\MailboxFrame.xml
 UI\SettingsPopup.xml
 
 Core\Main.lua
