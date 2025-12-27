@@ -192,6 +192,12 @@ function MailboxFrame:DisplayItems(items, charFullName, totalMails)
         itemButton.isMail = true
         itemButton.mailIndex = mail.mailIndex
         itemButton.mailItemIndex = mail.itemIndex or 1
+
+        -- Force left alignment in case template or other code changed anchors
+        if itemButton then
+            itemButton:ClearAllPoints()
+            itemButton:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -8)
+        end
         
         if mail.item and (mail.item.texture or mail.item.link) then
             Guda_ItemButton_SetItem(itemButton, nil, nil, mail.item, false, charFullName, true, true)
@@ -223,6 +229,11 @@ function MailboxFrame:DisplayItems(items, charFullName, totalMails)
 
         -- Row Money Frame
         local moneyFrame = getglobal(row:GetName() .. "_MoneyFrame")
+        if moneyFrame then
+            -- Force left alignment for the money frame
+            moneyFrame:ClearAllPoints()
+            moneyFrame:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 10, 8)
+        end
         if (mail.money or 0) > 0 then
             MoneyFrame_Update(moneyFrame:GetName(), mail.money)
             moneyFrame:Show()

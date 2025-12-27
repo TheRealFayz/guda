@@ -4,7 +4,7 @@
     <!-- Mailbox Row Template -->
     <Frame name="Guda_MailboxRowTemplate" virtual="true">
         <Size>
-            <AbsDimension x="360" y="50"/>
+            <AbsDimension x="380" y="50"/>
         </Size>
         <Layers>
             <Layer level="BACKGROUND">
