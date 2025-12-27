@@ -774,7 +774,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 -- Special border for keyring items (cyan/blue)
                 self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 1)
                 self.qualityBorder:Show()
-            elseif itemQuality and itemLink then
+            elseif itemQuality then
                 -- Check settings to determine if we should show borders (nil-safe)
                 local showEquipmentBorder, showOtherBorder
                 if addon and addon.Modules and addon.Modules.DB and addon.Modules.DB.GetSetting then
@@ -795,10 +795,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
                 -- Check if item is equipment (nil-safe)
                 local isEquipment = false
-                if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsEquipment then
-                    isEquipment = addon.Modules.Utils:IsEquipment(itemLink)
-                elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsEquipment then
-                    isEquipment = Guda.Modules.Utils:IsEquipment(itemLink)
+                if itemLink then
+                    if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsEquipment then
+                        isEquipment = addon.Modules.Utils:IsEquipment(itemLink)
+                    elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsEquipment then
+                        isEquipment = Guda.Modules.Utils:IsEquipment(itemLink)
+                    end
                 end
 
                 -- Determine if we should show the border based on item type and settings

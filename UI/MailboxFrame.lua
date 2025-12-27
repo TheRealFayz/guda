@@ -220,8 +220,15 @@ function MailboxFrame:DisplayItems(items, charFullName, totalMails)
         end
         
         -- Fill row data
-        getglobal(row:GetName() .. "_Sender"):SetText(mail.sender or "Unknown")
-        getglobal(row:GetName() .. "_Subject"):SetText(mail.subject or "No Subject")
+        local sender = mail.sender or "Unknown"
+        getglobal(row:GetName() .. "_Sender"):SetText(sender)
+
+        local subject = mail.subject or "No Subject"
+        if mail.item and mail.item.quality then
+            local r, g, b = addon.Modules.Utils:GetQualityColor(mail.item.quality)
+            subject = addon.Modules.Utils:ColorText(subject, r, g, b)
+        end
+        getglobal(row:GetName() .. "_Subject"):SetText(subject)
         
         local expireText = ""
         if mail.daysLeft then
