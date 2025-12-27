@@ -57,6 +57,7 @@ local CATEGORY_ORDER = {
 	["Weapon"] = 4,      -- Non-equippable weapons
 	["Armor"] = 5,       -- Non-equippable armor
 	["Tools"] = 6,
+	["Quest"] = 7,
 	["Quiver"] = 8,
 	["Reagent"] = 9,
 	["Trade Goods"] = 10,
@@ -64,7 +65,6 @@ local CATEGORY_ORDER = {
 	["Container"] = 12,
 	["Key"] = 14,
 	["Miscellaneous"] = 15,
-	["Quest"] = 16,
 	["Junk"] = 17,
 	["Class Items"] = 18,
 }
@@ -519,15 +519,15 @@ local function AddSortKeys(items)
 					item.equipSlotOrder = EQUIP_SLOT_ORDER[itemSubType] or 999
 				else
 					item.sortedClass = CATEGORY_ORDER[itemCategory] or 99
-					-- Heuristic: Detect items that should be in the Quest category (priority 11)
+					-- Heuristic: Detect items that should be in the Quest category (priority 7)
 					-- but aren't categorized as such by the game (e.g. some "Manual" items)
-					if item.sortedClass ~= (CATEGORY_ORDER["Quest"] or 99) then
+					if item.sortedClass ~= (CATEGORY_ORDER["Quest"] or 7) then
 						local nameLower = item.itemName and string.lower(item.itemName) or ""
 						if string.find(nameLower, "manual") or string.find(nameLower, "quest") then
-							item.sortedClass = 11
+							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
 						elseif IsQuestItemTooltip(item.bagID, item.slot) then
 							-- If name-based heuristic fails, check tooltip
-							item.sortedClass = 11
+							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
 						end
 					end
 					item.equipSlotOrder = 999
@@ -670,6 +670,13 @@ local function SortItems(items)
 				if ra ~= rb then
 					return ra > rb
 				end
+			elseif a.isQuest ~= b.isQuest then
+				-- If only one is a quest item and they are in the same sortedClass,
+				-- put the quest item first within that class (or just let sortedClass handle it)
+				-- Since we moved Quest to its own class 7, this might not be needed unless
+				-- they are in different classes but one is marked isQuest.
+				-- However, if they have same sortedClass, we want quest items first.
+				return a.isQuest
 			end
 			if a.sortedSubclass ~= b.sortedSubclass then
 				return a.sortedSubclass < b.sortedSubclass
