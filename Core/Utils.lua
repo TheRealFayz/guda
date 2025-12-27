@@ -103,15 +103,20 @@ scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 function Utils:GetInboxItemLink(index, itemIndex)
     -- Try global function first (if it exists on this server/version)
     if GetInboxItemLink then
-        local link = GetInboxItemLink(index)
+        -- Turtle WoW might support (index, itemIndex) for multiple attachments
+        local link = GetInboxItemLink(index, itemIndex or 1)
+        if link then return link end
+        
+        -- Fallback to single argument if that failed
+        link = GetInboxItemLink(index)
         if link then return link end
     end
 
     -- In 1.12.1, GameTooltip:GetHyperlink() does not exist.
     -- Let's try to use GetItemInfo(name) as the primary way.
-    local name = GetInboxItem(index, itemIndex)
+    local name, texture, count, quality = GetInboxItem(index, itemIndex or 1)
     if name then
-        local _, link = GetItemInfo(name)
+        local itemName, link = GetItemInfo(name)
         if link then
             return link
         end

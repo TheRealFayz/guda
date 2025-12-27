@@ -36,46 +36,48 @@ function MailboxScanner:ScanMailItemRows(index)
     local rows = {}
     
     if hasItem then
-        local itemIndex = 1
-        -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
-        local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
-        if name then
-            local itemLink = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
+        -- Turtle WoW supports up to 12 attachments per mail
+        for itemIndex = 1, 12 do
+            -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
+            local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
+            if not name then break end
 
+            local itemLink = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
+            local itemID = itemLink and addon.Modules.Utils:ExtractItemID(itemLink)
+
+            -- Fallback 1: If link/itemID is missing, try GetItemInfo(name) which might be cached now
+            if not itemID or not itemLink then
+                local _, link = GetItemInfo(name)
+                if link then
+                    itemLink = link
+                    itemID = addon.Modules.Utils:ExtractItemID(link)
+                    addon:Debug("Recovered link from GetItemInfo for %s", name)
+                end
+            end
+
+            -- Fallback 2: If still missing, try to recover from existing database (any character)
+            if not itemID or not itemLink then
+                itemID, itemLink = addon.Modules.DB:FindItemByName(name)
+                if itemID then
+                    addon:Debug("Recovered link from DB for %s", name)
+                end
+            end
+            
             local itemData = {
                 link = itemLink,
                 texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
                 count = count or 1,
                 quality = quality or 0,
                 name = name,
-                itemID = addon.Modules.Utils:ExtractItemID(itemLink),
+                itemID = itemID,
             }
 
-            -- Fallback: If link/itemID is missing, try to recover from existing database
-            if not itemData.itemID or not itemData.link then
-                local existingMailbox = addon.Modules.DB:GetCharacterMailbox(addon.Modules.DB:GetPlayerFullName())
-                for _, oldMail in ipairs(existingMailbox) do
-                    -- Match by sender, subject and item name
-                    if oldMail.sender == sender and oldMail.subject == subject and oldMail.item and oldMail.item.name == name then
-                        if not itemData.link and oldMail.item.link then
-                            itemData.link = oldMail.item.link
-                            addon:Debug("Recovered link from database for %s", name)
-                        end
-                        if not itemData.itemID and oldMail.item.itemID then
-                            itemData.itemID = oldMail.item.itemID
-                            addon:Debug("Recovered itemID from database for %s", name)
-                        end
-                        if itemData.link and itemData.itemID then break end
-                    end
-                end
-            end
-            
-            -- If we still don't have itemID but have a link (or vice versa), fix it
-            if itemData.link and not itemData.itemID then
-                itemData.itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+            -- Ensure we have a link if we have an itemID
+            if itemData.itemID and not itemData.link then
+                itemData.link = "item:" .. itemData.itemID .. ":0:0:0"
             end
 
-            -- If we have a link, try to get more detailed info
+            -- If we have a link, try to get more detailed info from cache
             if itemData.link then
                 local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemData.link)
                 if itemName then

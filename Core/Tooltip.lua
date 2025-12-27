@@ -7,7 +7,10 @@ addon.Modules.Tooltip = Tooltip
 -- Helper function to get item ID from link (Lua 5.0 compatible)
 local function GetItemIDFromLink(link)
 	if not link then return nil end
-	local _, _, itemID = strfind(link, "item:(%d+):?")
+    if type(link) == "number" then return link end
+    
+    -- Try to find itemID in a standard link or a raw item:ID string
+	local _, _, itemID = string.find(link, "item:(%d+)")
 	return itemID and tonumber(itemID) or nil
 end
 local function CountCurrentCharacterItems(itemID)
@@ -276,6 +279,12 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	if not itemID then
 		return
 	end
+
+	-- Guard against double-adding for the same item on the same tooltip
+	if tooltip.GudaInventoryAdded == itemID then
+		return
+	end
+	tooltip.GudaInventoryAdded = itemID
 
 	local totalBags = 0
 	local totalBank = 0

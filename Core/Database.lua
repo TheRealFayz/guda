@@ -319,6 +319,59 @@ function DB:GetCharacterMailbox(fullName)
 	return char and char.mailbox or {}
 end
 
+-- Find an item ID and link by name in any character's data
+function DB:FindItemByName(name)
+	if not name or name == "" or not Guda_DB or not Guda_DB.characters then return nil, nil end
+	
+	for fullName, char in pairs(Guda_DB.characters) do
+		-- Check bags
+		if char.bags then
+			for bagID, bagData in pairs(char.bags) do
+				if type(bagData) == "table" and bagData.slots then
+					for slotID, item in pairs(bagData.slots) do
+						if item and item.name == name and item.link then
+							local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+							if itemID then return itemID, item.link end
+						end
+					end
+				end
+			end
+		end
+		-- Check bank
+		if char.bank then
+			for bagID, bagData in pairs(char.bank) do
+				if type(bagData) == "table" and bagData.slots then
+					for slotID, item in pairs(bagData.slots) do
+						if item and item.name == name and item.link then
+							local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+							if itemID then return itemID, item.link end
+						end
+					end
+				end
+			end
+		end
+		-- Check equipped
+		if char.equipped then
+			for slot, item in pairs(char.equipped) do
+				if item and item.name == name and item.link then
+					local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+					if itemID then return itemID, item.link end
+				end
+			end
+		end
+		-- Check mailbox
+		if char.mailbox then
+			for _, mail in ipairs(char.mailbox) do
+				if mail.item and mail.item.name == name and mail.item.link then
+					local itemID = addon.Modules.Utils:ExtractItemID(mail.item.link)
+					if itemID then return itemID, mail.item.link end
+				end
+			end
+		end
+	end
+	return nil, nil
+end
+
 -- Get character's equipped items
 function DB:GetCharacterEquipped(fullName)
 	local char = Guda_DB.characters[fullName]

@@ -1004,6 +1004,7 @@ function Guda_ItemButton_OnEnter(self)
 
         -- Add mailbox metadata if available
         local mailData = self.mailData
+        
         if mailData then
             -- If we already added a line (for money/generic), or SetHyperlink/SetInboxItem added lines,
             -- we might want a separator if we're adding sender info.
@@ -1025,6 +1026,17 @@ function Guda_ItemButton_OnEnter(self)
             end
             if mailData.daysLeft then
                 GameTooltip:AddLine("Days left: " .. math.floor(mailData.daysLeft), 0.5, 0.5, 0.5)
+            end
+        end
+
+        -- Add Inventory counts for mailbox items at the very bottom
+        if addon.Modules.Tooltip and addon.Modules.Tooltip.AddInventoryInfo then
+            local link = self.itemData and (self.itemData.link or (self.itemData.itemID and ("item:" .. self.itemData.itemID .. ":0:0:0")))
+            if not link and self.mailIndex and isMailboxOpen then
+                link = addon.Modules.Utils:GetInboxItemLink(self.mailIndex, self.mailItemIndex or 1)
+            end
+            if link then
+                addon.Modules.Tooltip:AddInventoryInfo(GameTooltip, link)
             end
         end
         
@@ -1098,8 +1110,9 @@ end
 -- OnLeave handler
 function Guda_ItemButton_OnLeave(self)
     -- Clear any viewed character hint on the tooltip when leaving
-    if GameTooltip and GameTooltip.GudaViewedCharacter then
+    if GameTooltip then
         GameTooltip.GudaViewedCharacter = nil
+        GameTooltip.GudaInventoryAdded = nil
     end
     GameTooltip:Hide()
     ResetCursor()
