@@ -860,6 +860,9 @@ local function ApplySort(bagIDs, items, targetPositions)
 			PickupContainerItem(move.targetBag, move.targetSlot)
 			ClearCursor()
 			moveCount = moveCount + 1
+		else
+			-- If item is locked, it might be due to server lag or another process.
+			-- We don't increment moveCount but the item will be picked up in next pass.
 		end
 	end
 
@@ -1337,7 +1340,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 
  local passCount = 0
  local maxPasses = math.max(analysis.passes, 1)  -- Use estimated passes, minimum 1
- local safetyLimit = math.max(maxPasses * 2, 6)  -- Reasonable upper bound
+ local safetyLimit = math.max(maxPasses * 3, 10)  -- Reasonable upper bound
  local totalMoves = 0
  local noProgressPasses = 0
 
@@ -1388,7 +1391,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 noProgressPasses = 0
             end
 
-            if noProgressPasses >= 3 then
+            if noProgressPasses >= 5 then
                 addon:Print("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
                     sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
                 -- Final update
@@ -1409,8 +1412,8 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
 
 			-- PROGRESSIVE DELAY: Calculate delay based on remaining complexity
-			local baseDelay = 0.7
-			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.05, 2.0) -- max 2 seconds
+			local baseDelay = 1.2
+			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.06, 2.5) -- max 2.5 seconds
 			local totalDelay = baseDelay + complexityDelay
 
 			addon:Print("Waiting %.1f seconds before next pass...", totalDelay)
