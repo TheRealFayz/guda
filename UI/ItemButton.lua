@@ -11,6 +11,8 @@ scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 -- Check if an item is a quest item by scanning its tooltip
 -- Check if an item is a quest item by scanning its tooltip and determine type
 local function IsQuestItem(bagID, slotID, isBank)
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
 	if not bagID or not slotID then return false end
 
 	scanTooltip:ClearLines()
@@ -117,6 +119,8 @@ end
 
 -- Scan tooltip for red text that is NOT a durability line
 local function IsItemUnusable(bagID, slotID, isBank)
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
     if not bagID or not slotID then return false end
 
     -- Some clients require SetOwner before every SetBagItem/SetInventoryItem to populate lines
@@ -425,6 +429,10 @@ end
 
 -- Set item data
 function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter, isReadOnly)
+    -- Proactively convert to number to avoid comparisons with strings in downstream functions
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
+    
     -- Proactively clear any previous cooldown overlay state before reassigning this pooled button
     do
         local cd = getglobal(self:GetName().."Cooldown") or self.cooldown
@@ -459,6 +467,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
     self.otherChar = otherCharName
     self.isReadOnly = isReadOnly or false  -- Track if this is read-only mode
     self.isMail = false -- Clear mailbox flag by default
+    self.mailIndex = nil
+    self.mailItemIndex = nil
 
     -- Re-register for drag/drop every time (crucial for button reuse in Classic/Vanilla)
     if not self.isReadOnly and not self.otherChar then
@@ -486,6 +496,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         matchesFilter = true
     end
 
+    self.mailData = nil -- Clear mail metadata by default
+    
     -- Use Blizzard's default count fontstring (ContainerFrameItemButtonTemplate creates $parentCount)
     local countText = getglobal(self:GetName().."Count")
     local emptySlotBg = getglobal(self:GetName().."_EmptySlotBg")
@@ -947,17 +959,7 @@ end
 
 -- OnEnter handler (show tooltip)
 function Guda_ItemButton_OnEnter(self)
-    -- DETACH from Blizzard's internal tooltip logic for mailbox items
-    if self.isMail or this.isMail or (this:GetParent() and this:GetParent():GetName() == "Guda_MailboxFrame_ItemContainer") then
-        return
-    end
-
-    -- Prevent Blizzard's ContainerFrameItemButton_OnEnter from running if it somehow got through
-    if not self.bagID or self.bagID == -100 then
-        return
-    end
-
--- Highlight the corresponding bag button in the footer (works for empty and filled slots)
+    -- Highlight the corresponding bag button in the footer (works for empty and filled slots)
 	if not self.otherChar and self.bagID then
 		if self.isBank then
 		-- Bank item - highlight bank bag button
@@ -969,7 +971,7 @@ function Guda_ItemButton_OnEnter(self)
 	end
 
 	-- Early return for empty slots (no tooltip needed)
-	if not self.hasItem then
+	if not self.hasItem and not self.isMail then
 		return
 	end
 
@@ -977,7 +979,50 @@ function Guda_ItemButton_OnEnter(self)
 	-- important position of tooltip
 	GameTooltip:SetPoint("BOTTOMRIGHT", self, "TOPLEFT", 10, 0)
 
-	if self.otherChar or self.isReadOnly then
+    -- Mailbox tooltip handling
+    if self.isMail then
+        local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
+        if (not self.otherChar or self.otherChar == currentPlayerName) and self.mailIndex then
+            -- Live mailbox for current character
+            GameTooltip:SetInboxItem(self.mailIndex, self.mailItemIndex or 1)
+        elseif self.itemData and self.itemData.link then
+            -- Read-only / other character mailbox
+            GameTooltip.GudaViewedCharacter = self.otherChar
+            GameTooltip:SetHyperlink(self.itemData.link)
+        elseif self.itemData and self.itemData.name then
+            -- Money or generic mail
+            GameTooltip:AddLine(self.itemData.name, 1, 1, 1)
+        end
+
+        -- Add mailbox metadata if available
+        local mailData = self.mailData
+        if mailData then
+            -- If we already added a line (for money/generic), or SetHyperlink/SetInboxItem added lines,
+            -- we might want a separator if we're adding sender info.
+            if GameTooltip:NumLines() > 0 then
+                GameTooltip:AddLine(" ")
+            end
+
+            if mailData.sender then
+                GameTooltip:AddLine("From: " .. mailData.sender, 1, 1, 1)
+            end
+            if mailData.subject then
+                GameTooltip:AddLine("Subject: " .. mailData.subject, 1, 1, 0.8)
+            end
+            if (mailData.money or 0) > 0 and not (self.itemData and self.itemData.name == "Money") then
+                GameTooltip:AddLine("Money: " .. addon.Modules.Utils:FormatMoney(mailData.money), 1, 1, 1)
+            end
+            if (mailData.CODAmount or 0) > 0 then
+                GameTooltip:AddLine("COD: " .. addon.Modules.Utils:FormatMoney(mailData.CODAmount), 1, 0, 0)
+            end
+            if mailData.daysLeft then
+                GameTooltip:AddLine("Days left: " .. math.floor(mailData.daysLeft), 0.5, 0.5, 0.5)
+            end
+        end
+        
+        GameTooltip:Show()
+        return
+	elseif self.otherChar or self.isReadOnly then
 		GameTooltip.GudaViewedCharacter = self.otherChar
 		if self.itemData and self.itemData.link then
 			GameTooltip:SetHyperlink(self.itemData.link)

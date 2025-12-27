@@ -10,6 +10,9 @@ local currentViewChar = nil
 local searchText = ""
 local isReadOnlyMode = true -- Mailbox is always read-only in this addon (viewing offline data)
 local itemButtons = {}
+local mailboxRows = {}
+local currentPage = 1
+local ITEMS_PER_PAGE = 7
 local mailboxClickCatcher = nil
 
 -- OnLoad
@@ -70,7 +73,21 @@ end
 -- Show specific character's mailbox
 function MailboxFrame:ShowCharacter(fullName)
     currentViewChar = fullName
+    currentPage = 1
     self:Update()
+end
+
+-- Pagination
+function MailboxFrame:NextPage()
+    currentPage = currentPage + 1
+    self:Update()
+end
+
+function MailboxFrame:PrevPage()
+    if currentPage > 1 then
+        currentPage = currentPage - 1
+        self:Update()
+    end
 end
 
 -- Initialize module
@@ -105,13 +122,38 @@ function MailboxFrame:Update()
                 matchesSearch = true
             elseif mail.subject and string.find(string.lower(mail.subject), searchText) then
                 matchesSearch = true
+            elseif mail.items then
+                for _, item in ipairs(mail.items) do
+                    if item.name and string.find(string.lower(item.name), searchText) then
+                        matchesSearch = true
+                        break
+                    end
+                end
             elseif mail.item and mail.item.name and string.find(string.lower(mail.item.name), searchText) then
                 matchesSearch = true
             end
         end
 
         if matchesSearch then
-            table.insert(filteredItems, mail)
+            -- Flatten mails with multiple items so they all show up in the grid
+            if mail.items and table.getn(mail.items) > 1 then
+                for itemIndex, item in ipairs(mail.items) do
+                    local mailCopy = {}
+                    for k, v in pairs(mail) do mailCopy[k] = v end
+                    mailCopy.item = item
+                    mailCopy.mailIndex = i
+                    mailCopy.itemIndex = itemIndex
+                    -- Clear items list in copy to avoid recursive flattening
+                    mailCopy.items = nil 
+                    table.insert(filteredItems, mailCopy)
+                end
+            else
+                local mailCopy = {}
+                for k, v in pairs(mail) do mailCopy[k] = v end
+                mailCopy.mailIndex = i
+                mailCopy.itemIndex = 1
+                table.insert(filteredItems, mailCopy)
+            end
         end
     end
 
@@ -135,61 +177,76 @@ function MailboxFrame:Update()
     MoneyFrame_Update("Guda_MailboxFrame_MoneyFrame", totalMoney)
 end
 
--- Display mailbox items in a grid
+-- Display mailbox items in a list
 function MailboxFrame:DisplayItems(items, charFullName)
     local container = getglobal("Guda_MailboxFrame_ItemContainer")
-    -- Explicitly set container ID to -100 to avoid being picked up as a bag
-    if container.SetID then container:SetID(-100) end
     
-    local columns = 10
-    local buttonSize = 34
-    local spacing = 2
-    
-    -- Hide all existing buttons first
-    for _, button in pairs(itemButtons) do
-        button:Hide()
-        button.inUse = false
+    -- Hide all existing rows first
+    for _, row in pairs(mailboxRows) do
+        row:Hide()
     end
 
-    local row = 0
-    local col = 0
+    local totalItems = table.getn(items)
+    local totalPages = math.max(1, math.ceil(totalItems / ITEMS_PER_PAGE))
     
-    for i, mail in ipairs(items) do
-        local button = itemButtons[i]
-        if not button then
-            button = Guda_GetItemButton(container)
-            itemButtons[i] = button
+    if currentPage > totalPages then
+        currentPage = totalPages
+    end
+
+    local startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1
+    local endIndex = math.min(startIndex + ITEMS_PER_PAGE - 1, totalItems)
+
+    local rowIndex = 1
+    for i = startIndex, endIndex do
+        local mail = items[i]
+        local row = mailboxRows[rowIndex]
+        if not row then
+            row = CreateFrame("Frame", "Guda_MailboxRow" .. rowIndex, container, "Guda_MailboxRowTemplate")
+            mailboxRows[rowIndex] = row
         end
-
-        -- Consistently set button size for the mailbox grid
-        button:SetWidth(buttonSize)
-        button:SetHeight(buttonSize)
-
-        button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", container, "TOPLEFT", col * (buttonSize + spacing), -row * (buttonSize + spacing))
         
-        -- Set button data
-        button.isBank = false
-        button.otherChar = charFullName
-        button.isMail = true -- Custom flag for mailbox items
-        button.inUse = true
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -(rowIndex - 1) * 55)
+        
+        -- Fill row data
+        getglobal(row:GetName() .. "_Sender"):SetText(mail.sender or "Unknown")
+        getglobal(row:GetName() .. "_Subject"):SetText(mail.subject or "No Subject")
+        
+        local expireText = ""
+        if mail.daysLeft then
+            if mail.daysLeft < 1 then
+                expireText = string.format("|cffff0000%dh|r", math.floor(mail.daysLeft * 24))
+            else
+                expireText = string.format("%dd", math.floor(mail.daysLeft))
+            end
+        end
+        getglobal(row:GetName() .. "_ExpireTime"):SetText(expireText)
+        
+        -- Item Button
+        local itemButton = getglobal(row:GetName() .. "_ItemButton")
+        -- Re-assign shared namespace function if needed, but it should be available globally or via addon
+        
+        itemButton.isBank = false
+        itemButton.otherChar = charFullName
+        itemButton.mailData = mail
+        itemButton.isMail = true
+        itemButton.mailIndex = mail.mailIndex
+        itemButton.mailItemIndex = mail.itemIndex or 1
         
         if mail.item and (mail.item.texture or mail.item.link) then
-            Guda_ItemButton_SetItem(button, nil, nil, mail.item, false, charFullName, true, true)
-            -- Re-enforce size because SetItem overrides it with global settings
-            button:SetWidth(buttonSize)
-            button:SetHeight(buttonSize)
-            button.isMail = true -- Re-apply after SetItem clears it
+            Guda_ItemButton_SetItem(itemButton, nil, nil, mail.item, false, charFullName, true, true)
+            itemButton.isMail = true
+            itemButton.mailData = mail
+            itemButton.mailIndex = mail.mailIndex
+            itemButton.mailItemIndex = mail.itemIndex or 1
         else
-            -- Use SetItem with nil itemData to clear the button properly first
-            Guda_ItemButton_SetItem(button, nil, nil, nil, false, charFullName, true, true)
-            button:SetWidth(buttonSize)
-            button:SetHeight(buttonSize)
-            button.isMail = true -- Re-apply after SetItem clears it
-
-            -- Then show our custom icon for money/mail
-            button.itemData = nil
-            local icon = getglobal(button:GetName().."IconTexture") or getglobal(button:GetName().."Icon")
+            Guda_ItemButton_SetItem(itemButton, nil, nil, nil, false, charFullName, true, true)
+            itemButton.isMail = true
+            itemButton.mailData = mail
+            itemButton.mailIndex = mail.mailIndex
+            itemButton.mailItemIndex = 1
+            
+            local icon = getglobal(itemButton:GetName().."IconTexture") or getglobal(itemButton:GetName().."Icon")
             if icon then
                 if (mail.money or 0) > 0 then
                     icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
@@ -201,73 +258,42 @@ function MailboxFrame:DisplayItems(items, charFullName)
                 icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                 icon:Show()
             end
-            
-            if button.qualityBorder then button.qualityBorder:Hide() end
+            if itemButton.qualityBorder then itemButton.qualityBorder:Hide() end
         end
-
-        -- Custom Tooltip for mail items
-        button.mailData = mail -- Store data on button to avoid closure issues in Lua 5.0
-        button.isMail = true -- Redundant set to be safe
-        button:SetScript("OnEnter", function()
-            -- Force detachment from Blizzard logic inside the closure as well
-            if this.SetID then this:SetID(0) end
-            this.isMail = true
-            
-            local mailData = this.mailData
-            if not mailData then return end
-
-            -- Explicitly use GameTooltip:ClearLines() and SetOwner to ensure a clean tooltip
-            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-            GameTooltip:ClearLines()
-
-            if mailData.item and mailData.item.link then
-                GameTooltip:SetHyperlink(mailData.item.link)
-                -- Add a gap if there's also sender/subject info to show
-                GameTooltip:AddLine(" ")
-            elseif mailData.item and mailData.item.name then
-                -- Fallback if we have item data but no link (e.g. not in cache yet)
-                GameTooltip:AddLine(mailData.item.name, 1, 1, 1)
-                GameTooltip:AddLine(" ")
-            end
-            
-            GameTooltip:AddLine("From: " .. (mailData.sender or "Unknown"), 1, 1, 1)
-            GameTooltip:AddLine("Subject: " .. (mailData.subject or "No Subject"), 1, 1, 0.8)
-            
-            if (mailData.money or 0) > 0 then
-                GameTooltip:AddLine("Money: " .. addon.Modules.Utils:FormatMoney(mailData.money), 1, 1, 1)
-            end
-            if (mailData.CODAmount or 0) > 0 then
-                GameTooltip:AddLine("COD: " .. addon.Modules.Utils:FormatMoney(mailData.CODAmount), 1, 0, 0)
-            end
-            
-            if mailData.daysLeft then
-                GameTooltip:AddLine("Days left: " .. math.floor(mailData.daysLeft), 0.5, 0.5, 0.5)
-            end
-            
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-        end)
         
-        -- Mailbox is read-only, so no clicking/dragging
-        button:RegisterForClicks()
-        button:SetScript("OnClick", nil)
-        button:SetScript("OnDragStart", nil)
-        button:SetScript("OnReceiveDrag", nil)
-
-        button:Show()
-
-        col = col + 1
-        if col >= columns then
-            col = 0
-            row = row + 1
+        -- Row Money Frame
+        local moneyFrame = getglobal(row:GetName() .. "_MoneyFrame")
+        if (mail.money or 0) > 0 then
+            MoneyFrame_Update(moneyFrame:GetName(), mail.money)
+            moneyFrame:Show()
+        else
+            moneyFrame:Hide()
         end
+        
+        row:Show()
+        rowIndex = rowIndex + 1
     end
 
-    -- Adjust container height
-    local totalRows = row + (col > 0 and 1 or 0)
-    container:SetHeight(math.max(420, totalRows * (buttonSize + spacing)))
+    -- Update pagination buttons
+    local prevBtn = getglobal("Guda_MailboxFrame_PrevPageButton")
+    local nextBtn = getglobal("Guda_MailboxFrame_NextPageButton")
+    
+    if currentPage > 1 then
+        prevBtn:Enable()
+    else
+        prevBtn:Disable()
+    end
+    
+    if currentPage < totalPages then
+        nextBtn:Enable()
+    else
+        nextBtn:Disable()
+    end
+    
+    -- Update page text in footer
+    local footerFontString = getglobal("Guda_MailboxFrame_Footer_Text")
+    local footerText = footerFontString:GetText() or ""
+    footerFontString:SetText(footerText .. "  (Page " .. currentPage .. " of " .. totalPages .. ")")
 end
 
 -- Search text changed
@@ -279,6 +305,7 @@ function Guda_MailboxFrame_OnSearchTextChanged()
     else
         searchText = string.lower(text)
     end
+    currentPage = 1
     MailboxFrame:Update()
 end
 

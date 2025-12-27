@@ -27,42 +27,40 @@ end
 
 -- Scan a single mail item
 function MailboxScanner:ScanMailItem(index)
-    -- GetInboxItem(index) returns: packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM
-    local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM = GetInboxItem(index)
-    
-    local itemData = nil
+    -- GetInboxHeaderInfo(index) returns: packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM
+    local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM = GetInboxHeaderInfo(index)
+
+    local items = {}
     if hasItem then
-        addon:Debug("Scanning mail item %d", index)
-        -- In 1.12.1, GetInboxItemLink(index) returns the link
-        local itemLink = GetInboxItemLink(index)
-        
-        -- GetInboxItemInfo(index) returns: name, texture, count, quality, canUse
-        local infoName, infoTexture, infoCount, infoQuality, infoCanUse = GetInboxItemInfo(index)
-        
-        addon:Debug("Mail item %d: infoName=%s, infoTexture=%s", index, tostring(infoName), tostring(infoTexture))
+        -- Turtle WoW supports up to 12 attachments per mail
+            -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
+            local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
+            if name then
+                local itemLink = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
 
-        -- Even if link is missing (not cached), we can store what we have from GetInboxItemInfo
-        itemData = {
-            link = itemLink,
-            texture = infoTexture or packageIcon or "Interface\\Icons\\INV_Misc_Bag_08",
-            count = infoCount or 1,
-            quality = infoQuality or 0,
-            name = infoName or subject or "Unknown Item",
-        }
+                local itemData = {
+                    link = itemLink,
+                    texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
+                    count = count or 1,
+                    quality = quality or 0,
+                    name = name,
+                }
 
-        -- If we have a link, try to get more detailed info
-        if itemLink then
-            local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
-            if itemName then
-                itemData.name = itemName
-                itemData.quality = itemQuality or itemData.quality
-                itemData.iLevel = iLevel
-                itemData.type = itemType
-                itemData.class = itemCategory
-                itemData.subclass = itemSubType
-                itemData.equipSlot = itemEquipLoc
-                if itemTexture then itemData.texture = itemTexture end
-            end
+                -- If we have a link, try to get more detailed info
+                if itemLink then
+                    local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
+                    if itemName then
+                        itemData.name = itemName
+                        itemData.quality = itemQuality or itemData.quality
+                        itemData.iLevel = iLevel
+                        itemData.type = itemType
+                        itemData.class = itemCategory
+                        itemData.subclass = itemSubType
+                        itemData.equipSlot = itemEquipLoc
+                        if itemTexture then itemData.texture = itemTexture end
+                    end
+                end
+                table.insert(items, itemData)
         end
     end
 
@@ -72,8 +70,9 @@ function MailboxScanner:ScanMailItem(index)
         money = money,
         CODAmount = CODAmount,
         daysLeft = daysLeft,
-        hasItem = hasItem,
-        item = itemData,
+        hasItem = (table.getn(items) > 0),
+        item = items[1],
+        items = items,
         wasRead = wasRead,
         packageIcon = packageIcon,
     }
@@ -110,6 +109,17 @@ function MailboxScanner:Initialize()
             end
         end)
     end, "MailboxScanner")
+
+    -- Register for GET_ITEM_INFO_RECEIVED to refresh if item data arrives
+    addon.Modules.Events:Register("GET_ITEM_INFO_RECEIVED", function()
+        if mailboxOpen then
+            addon:Debug("GET_ITEM_INFO_RECEIVED: Refreshing mailbox")
+            MailboxScanner:SaveToDatabase()
+        end
+    end, "MailboxScanner")
+
+    -- Register for UI_ERROR_MESSAGE to handle "item not found" situations if needed
+    -- (Some items might not be in cache and fail silently otherwise)
 
     -- Mailbox closed
     addon.Modules.Events:OnMailClosed(function()
