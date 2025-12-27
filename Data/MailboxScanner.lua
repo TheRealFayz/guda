@@ -195,6 +195,51 @@ function MailboxScanner:OnSendMail(recipient, subject, body)
     end
 end
 
+-- Handle auction house buyouts
+function MailboxScanner:OnAuctionBid(type, index, bid)
+    local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice, bidAmount, highBidder, owner = GetAuctionItemInfo(type, index)
+    
+    if name and buyoutPrice > 0 and bid >= buyoutPrice then
+        local link = GetAuctionItemLink(type, index)
+        local itemData = {
+            name = name,
+            texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
+            count = count or 1,
+            quality = quality or 0,
+            link = link,
+            itemID = addon.Modules.Utils:ExtractItemID(link),
+        }
+        
+        -- Try to get more info if it's in cache
+        local itemName, retLink, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(link or name)
+        if itemName then
+            itemData.link = retLink or itemData.link
+            itemData.itemID = addon.Modules.Utils:ExtractItemID(itemData.link) or itemData.itemID
+            itemData.quality = itemQuality or itemData.quality
+            itemData.iLevel = iLevel
+            itemData.type = itemType
+            itemData.class = itemCategory
+            itemData.subclass = itemSubType
+            itemData.equipSlot = itemEquipLoc
+            if itemTexture then itemData.texture = itemTexture end
+        end
+
+        local mailRow = {
+            sender = "Auction House",
+            subject = "Auction won: " .. name,
+            money = 0,
+            CODAmount = 0,
+            daysLeft = 30,
+            hasItem = true,
+            item = itemData,
+            wasRead = false,
+        }
+        
+        addon.Modules.DB:AddMailToCharacter(UnitName("player"), nil, mailRow)
+        addon:Debug("Captured AH buyout: %s", name)
+    end
+end
+
 -- Initialize mailbox scanner
 function MailboxScanner:Initialize()
     -- Hook SendMail to capture outgoing mail to alts
@@ -202,6 +247,13 @@ function MailboxScanner:Initialize()
     SendMail = function(recipient, subject, body)
         MailboxScanner:OnSendMail(recipient, subject, body)
         return originalSendMail(recipient, subject, body)
+    end
+
+    -- Hook PlaceAuctionBid to capture AH buyouts
+    local originalPlaceAuctionBid = PlaceAuctionBid
+    PlaceAuctionBid = function(type, index, bid)
+        MailboxScanner:OnAuctionBid(type, index, bid)
+        return originalPlaceAuctionBid(type, index, bid)
     end
 
     -- Mailbox opened
