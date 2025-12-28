@@ -131,6 +131,7 @@ function DB:Initialize()
 			money = 0,
 			bags = {},
 			bank = {},
+			mailbox = {},   -- Add mailbox storage
 			equipped = {},  -- Add equipped items storage
 			character = {}, -- Add character info storage
 			lastUpdate = time(),
@@ -152,6 +153,10 @@ function DB:Initialize()
 		if not char.character then
 			char.character = {}
 			addon:Debug("Added character field to existing character")
+		end
+		if not char.mailbox then
+			char.mailbox = {}
+			addon:Debug("Added mailbox field to existing character")
 		end
 	end
 
@@ -215,6 +220,58 @@ function DB:SaveMoney(copper)
 	end
 end
 
+-- Save mailbox data
+function DB:SaveMailbox(mailboxData)
+	local char = self:GetCurrentCharacter()
+	if char then
+		char.mailbox = mailboxData
+		char.lastUpdate = time()
+		addon:Debug("Saved mailbox data")
+	end
+end
+
+-- Add a single mail entry to a character's mailbox
+function DB:AddMailToCharacter(name, realm, mailRow)
+	local fullName = name .. "-" .. (realm or playerRealm)
+	local char = Guda_DB.characters[fullName]
+	
+	if char then
+		if not char.mailbox then
+			char.mailbox = {}
+		end
+		
+		-- Check if this exact mail already exists (simplistic check)
+		local exists = false
+		for _, m in ipairs(char.mailbox) do
+			if m.sender == mailRow.sender and m.subject == mailRow.subject and m.money == mailRow.money then
+				if (not m.item and not mailRow.item) or (m.item and mailRow.item and m.item.name == mailRow.item.name and m.item.count == mailRow.item.count) then
+					exists = true
+					-- Update link/itemID if missing in existing but present in new
+					if mailRow.item and m.item then
+						if not m.item.link and mailRow.item.link then
+							m.item.link = mailRow.item.link
+							addon:Debug("Updated link for existing mail item")
+						end
+						if not m.item.itemID and mailRow.item.itemID then
+							m.item.itemID = mailRow.item.itemID
+							addon:Debug("Updated itemID for existing mail item")
+						end
+					end
+					break
+				end
+			end
+		end
+		
+		if not exists then
+			table.insert(char.mailbox, 1, mailRow) -- Add to beginning
+			char.lastUpdate = time()
+			addon:Debug("Added outgoing mail to %s's mailbox", fullName)
+			return true
+		end
+	end
+	return false
+end
+
 -- Get all characters (optionally filter by faction and/or realm)
 function DB:GetAllCharacters(sameFactionOnly, currentRealmOnly)
 	local chars = {}
@@ -254,6 +311,65 @@ end
 function DB:GetCharacterBank(fullName)
 	local char = Guda_DB.characters[fullName]
 	return char and char.bank or {}
+end
+
+-- Get character's mailbox
+function DB:GetCharacterMailbox(fullName)
+	local char = Guda_DB.characters[fullName]
+	return char and char.mailbox or {}
+end
+
+-- Find an item ID and link by name in any character's data
+function DB:FindItemByName(name)
+	if not name or name == "" or not Guda_DB or not Guda_DB.characters then return nil, nil end
+	
+	for fullName, char in pairs(Guda_DB.characters) do
+		-- Check bags
+		if char.bags then
+			for bagID, bagData in pairs(char.bags) do
+				if type(bagData) == "table" and bagData.slots then
+					for slotID, item in pairs(bagData.slots) do
+						if item and item.name == name and item.link then
+							local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+							if itemID then return itemID, item.link end
+						end
+					end
+				end
+			end
+		end
+		-- Check bank
+		if char.bank then
+			for bagID, bagData in pairs(char.bank) do
+				if type(bagData) == "table" and bagData.slots then
+					for slotID, item in pairs(bagData.slots) do
+						if item and item.name == name and item.link then
+							local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+							if itemID then return itemID, item.link end
+						end
+					end
+				end
+			end
+		end
+		-- Check equipped
+		if char.equipped then
+			for slot, item in pairs(char.equipped) do
+				if item and item.name == name and item.link then
+					local itemID = addon.Modules.Utils:ExtractItemID(item.link)
+					if itemID then return itemID, item.link end
+				end
+			end
+		end
+		-- Check mailbox
+		if char.mailbox then
+			for _, mail in ipairs(char.mailbox) do
+				if mail.item and mail.item.name == name and mail.item.link then
+					local itemID = addon.Modules.Utils:ExtractItemID(mail.item.link)
+					if itemID then return itemID, mail.item.link end
+				end
+			end
+		end
+	end
+	return nil, nil
 end
 
 -- Get character's equipped items

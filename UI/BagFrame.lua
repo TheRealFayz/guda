@@ -6,7 +6,19 @@ local addon = Guda
 local BagFrame = {}
 addon.Modules.BagFrame = BagFrame
 
+-- Use centralized frame helpers for section headers and bag parents
+function BagFrame:GetSectionHeader(index)
+    return Guda_GetSectionHeader("Guda_BagFrame", "Guda_BagFrame_ItemContainer", index)
+end
+
+function BagFrame:GetBagParent(bagID)
+    return Guda_GetBagParent("Guda_BagFrame", bagParents, bagID, "Guda_BagFrame_ItemContainer")
+end
+
 local currentViewChar = nil -- nil = current character
+function BagFrame:GetCurrentViewChar()
+    return currentViewChar
+end
 local searchText = ""
 local itemButtons = {}
 local showKeyring = false -- Toggle for keyring display
@@ -109,6 +121,9 @@ end
 
 -- OnHide
 function Guda_BagFrame_OnHide(self)
+	-- Close any open dropdown menus when the bag frame is hidden
+	CloseDropDownMenus()
+
 	-- Clean up all buttons when frame is hidden (safe since we're not displaying)
 	for _, bagParent in pairs(bagParents) do
 		if bagParent then
@@ -146,21 +161,7 @@ end
 
 -- Update lock states of existing buttons (lightweight, used during drag)
 function BagFrame:UpdateLockStates()
-	for _, bagParent in pairs(bagParents) do
-		if bagParent then
-			local buttons = { bagParent:GetChildren() }
-			for _, button in ipairs(buttons) do
-				if button.hasItem ~= nil and button:IsShown() and button.bagID and button.slotID then
-					-- Get live lock state
-					local _, _, locked = GetContainerItemInfo(button.bagID, button.slotID)
-					-- Update desaturation (gray out locked items)
-					if not button.otherChar and not button.isReadOnly and SetItemButtonDesaturated then
-						SetItemButtonDesaturated(button, locked, 0.5, 0.5, 0.5)
-					end
-				end
-			end
-		end
-	end
+    Guda_UpdateLockStates(bagParents)
 end
 
 -- Update bagline layout (hover option)
@@ -365,44 +366,13 @@ function BagFrame:Update()
 	end
 end
 
--- Helper to get or create section header
+-- Delegate to centralized helpers
 function BagFrame:GetSectionHeader(index)
-    local name = "Guda_BagFrame_SectionHeader" .. index
-    local header = getglobal(name)
-    if not header then
-        header = CreateFrame("Frame", name, getglobal("Guda_BagFrame_ItemContainer"))
-        header:SetHeight(20)
-        header:EnableMouse(true)
-        local text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        text:SetPoint("LEFT", header, "LEFT", 0, 0)
-        header.text = text
-
-        header:SetScript("OnEnter", function()
-            if this.fullName and this.isShortened then
-                GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                GameTooltip:SetText(this.fullName)
-                GameTooltip:Show()
-            end
-        end)
-        header:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-        end)
-    end
-    header.inUse = true
-    return header
+    return Guda_GetSectionHeader("Guda_BagFrame", "Guda_BagFrame_ItemContainer", index)
 end
 
--- Helper to get or create bag parent frame
 function BagFrame:GetBagParent(bagID)
-    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-    if not bagParents[bagID] then
-        bagParents[bagID] = CreateFrame("Frame", "Guda_BagFrame_BagParent"..bagID, itemContainer)
-        bagParents[bagID]:SetAllPoints(itemContainer)
-        if bagParents[bagID].SetID then
-            bagParents[bagID]:SetID(bagID)
-        end
-    end
-    return bagParents[bagID]
+    return Guda_GetBagParent("Guda_BagFrame", bagParents, bagID, "Guda_BagFrame_ItemContainer")
 end
 
 -- Display items by category
@@ -953,113 +923,7 @@ end
 
 -- Resize frame based on number of rows and columns
 function BagFrame:ResizeFrame(currentRow, currentCol, columns, overrideHeight)
-	local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
-	local spacing = addon.Modules.DB:GetSetting("iconSpacing") or addon.Constants.BUTTON_SPACING
-
-	-- Calculate actual number of rows used
-	local totalRows = (currentRow or 0) + 1
-
-	-- Ensure at least 1 row
-	if totalRows < 1 then
-		totalRows = 1
-	end
-
-	-- Calculate required dimensions based on columns
-	local containerWidth = (columns * (buttonSize + spacing)) + 20
-	local containerHeight = overrideHeight or ((totalRows * (buttonSize + spacing)) + 20)
-	local frameWidth = containerWidth + 20
-
-	-- Check if search bar is visible
-	local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
-	if showSearchBar == nil then
-		showSearchBar = true
-	end
-
-	-- Adjust frame height based on search bar visibility
-	-- Footer height varies: more space needed when search bar is visible
-	local titleHeight = 40
-	local searchBarHeight = 30
-	local footerHeight
-	local frameHeight
-
-	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
-
-	if hideFooter then
-		footerHeight = 10 -- Small padding at bottom
-		frameHeight = containerHeight + titleHeight + (showSearchBar and searchBarHeight or 0) + footerHeight
-	elseif showSearchBar then
-		footerHeight = 55  -- Increased footer height when search bar is visible (toolbar 40px + spacing 15px)
-		frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight  -- 125 total
-	else
-		footerHeight = 45  -- Normal footer height (toolbar 40px + spacing 5px)
-		frameHeight = containerHeight + titleHeight + footerHeight  -- 85 total
-	end
-
-	-- Minimum sizes
-	if containerWidth < 200 then
-		containerWidth = 200
-		frameWidth = 220
-	end
-	if containerHeight < 150 then
-		containerHeight = 150
-	end
-	if frameHeight < 250 then
-		frameHeight = 250
-	end
-
-	-- Maximum sizes
-	if containerWidth > 1250 then
-		containerWidth = 1250
-		frameWidth = 1270
-	end
-	if containerHeight > 1000 then
-		containerHeight = 1000
-	end
-	if frameHeight > 1200 then
-		frameHeight = 1200
-	end
-
-	-- Resize frames
-	local bagFrame = getglobal("Guda_BagFrame")
-	local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
-
-	if bagFrame then
-		bagFrame:SetWidth(frameWidth)
-		bagFrame:SetHeight(frameHeight)
-
-		-- Always use BOTTOMRIGHT anchor to make frame grow left
-		bagFrame:ClearAllPoints()
-
-		if addon and addon.Modules and addon.Modules.DB then
-			local pos = addon.Modules.DB:GetSetting("bagFramePosition")
-			-- Only use saved position if it was saved as BOTTOMRIGHT
-			if pos and pos.point == "BOTTOMRIGHT" and pos.x and pos.y then
-				bagFrame:SetPoint("BOTTOMRIGHT", "UIParent", "BOTTOMRIGHT", pos.x, pos.y)
-			else
-			-- Default position: bottom right corner
-				bagFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 100)
-			end
-		else
-		-- Fallback to default if DB not available
-			bagFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 100)
-		end
-	end
-
-	if itemContainer then
-		itemContainer:SetWidth(containerWidth)
-		itemContainer:SetHeight(containerHeight)
-	end
-
-	-- Resize search bar and toolbar to match container width
-	local searchBar = getglobal("Guda_BagFrame_SearchBar")
-	if searchBar then
-		searchBar:SetWidth(containerWidth)
-	end
-
-	local toolbar = getglobal("Guda_BagFrame_Toolbar")
-	if toolbar then
-		toolbar:SetWidth(containerWidth)
-	end
+    return Guda_ResizeFrame("Guda_BagFrame", "Guda_BagFrame_ItemContainer", currentRow, currentCol, columns, overrideHeight)
 end
 
 -- Check if search is currently active
@@ -1069,74 +933,8 @@ end
 
 -- Check if item passes search filter (pfUI style)
 function BagFrame:PassesSearchFilter(itemData)
--- If no search text, everything matches
-	if not self:IsSearchActive() then
-		return true
-	end
-
-	-- Empty slots don't match when searching (pfUI style - they get dimmed)
-	if not itemData then
-		return false
-	end
-
-	-- Get item name from itemData.name or parse from link
-	local itemName = itemData.name
-	if not itemName and itemData.link then
-	-- Parse name from item link: |cffffffff|Hitem:...|h[Item Name]|h|r
-		local _, _, name = string.find(itemData.link, "%[(.+)%]")
-		itemName = name
-		if not self.warnedAboutParsing then
-			addon:Print("DEBUG: Had to parse item name from link: " .. (itemName or "FAILED"))
-			self.warnedAboutParsing = true
-		end
-	end
-
-	if not itemName then
-		if not self.warnedAboutNoName then
-			addon:Print("DEBUG: Item has no name and no link! texture = " .. tostring(itemData.texture))
-			self.warnedAboutNoName = true
-		end
-		return false
-	end
-
-	-- Case-insensitive search in item name
-	local search = string.lower(searchText)
-
-	-- Advanced search (pfUI style categories)
-	if string.sub(search, 1, 1) == "~" then
-		local category = string.sub(search, 2)
-		local itemType = itemData.class or ""
-		local itemQuality = itemData.quality or -1
-
-		if category == "equipment" or category == "armor" or category == "weapon" then
-			if itemType == "Armor" or itemType == "Weapon" then return true end
-		elseif category == "consumable" then
-			if itemType == "Consumable" then return true end
-		elseif category == "tradegoods" or category == "trades" then
-			if itemType == "Trade Goods" then return true end
-		elseif category == "quest" then
-			local isQuest, isQuestStarter = Guda_GetQuestInfo(itemData.bagID, itemData.slotID, itemData.isBank)
-			if isQuest or isQuestStarter or itemType == "Quest" then return true end
-		elseif category == "reagent" then
-			if itemType == "Reagent" then return true end
-		elseif category == "common" then if itemQuality == 1 then return true end
-		elseif category == "uncommon" then if itemQuality == 2 then return true end
-		elseif category == "rare" then if itemQuality == 3 then return true end
-		elseif category == "epic" then if itemQuality == 4 then return true end
-		elseif category == "legendary" then if itemQuality == 5 then return true end
-		end
-	end
-
-	itemName = string.lower(itemName)
-	-- Check if item name contains search text
-	local matches = string.find(itemName, search, 1, true) ~= nil
-
-	-- Debug: print first match found
-	if matches and not self.foundFirstMatch then
-		self.foundFirstMatch = true
-	end
-
-	return matches
+    if not self:IsSearchActive() then return true end
+    return Guda_PassesSearchFilter(itemData, searchText)
 end
 
 function BagFrame:UpdateMoney()
@@ -1405,119 +1203,15 @@ function Guda_BagFrame_MoneyOnEnter(self)
 end
 
 -- Dropdown management
-local characterDropdown = nil
-local bankDropdown = nil
-
--- Toggle character dropdown
-function Guda_BagFrame_ToggleCharacterDropdown(button)
--- Hide bank dropdown if it's shown
-	if bankDropdown and bankDropdown:IsShown() then
-		bankDropdown:Hide()
-	end
-
-	if characterDropdown and characterDropdown:IsShown() then
-		characterDropdown:Hide()
-		return
-	end
-
-	if not characterDropdown then
-	-- Create dropdown frame
-		characterDropdown = CreateFrame("Frame", "Guda_CharacterDropdown", UIParent)
-		characterDropdown:SetFrameStrata("DIALOG")
-		characterDropdown:SetWidth(200)
-		characterDropdown:SetBackdrop({
-			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-			edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-			tile = true,
-			tileSize = 16,
-			edgeSize = 16,
-			insets = { left = 4, right = 4, top = 4, bottom = 4 }
-		})
-		characterDropdown:SetBackdropColor(0, 0, 0, 0.95)
-		characterDropdown:EnableMouse(true)
-		characterDropdown:Hide()
-
-		characterDropdown.buttons = {}
-	end
-
-	-- Position dropdown below the button
-	characterDropdown:ClearAllPoints()
-	characterDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
-
-	-- Clear existing buttons
-	for _, btn in ipairs(characterDropdown.buttons) do
-		btn:Hide()
-	end
-	characterDropdown.buttons = {}
-
-	-- Get all characters on current realm
-	local chars = addon.Modules.DB:GetAllCharacters(false, true)
-
-	-- Add "Current Character" option at the top
-	local yOffset = -8
-	local currentCharButton = CreateFrame("Button", nil, characterDropdown)
-	currentCharButton:SetWidth(188)
-	currentCharButton:SetHeight(20)
-	currentCharButton:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
-
-	-- Button background on hover
-	local currentCharBg = currentCharButton:CreateTexture(nil, "BACKGROUND")
-	currentCharBg:SetAllPoints()
-	currentCharBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-	currentCharBg:SetBlendMode("ADD")
-	currentCharBg:SetAlpha(0)
-
-	-- Button text
-	local currentCharText = currentCharButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	currentCharText:SetPoint("LEFT", currentCharButton, "LEFT", 8, 0)
-	currentCharText:SetText("Characters")
-
-	-- Button scripts
-	currentCharButton:SetScript("OnEnter", function()
-		currentCharBg:SetAlpha(0.3)
-	end)
-	currentCharButton:SetScript("OnLeave", function()
-		currentCharBg:SetAlpha(0)
-	end)
-	currentCharButton:SetScript("OnClick", function()
-		addon.Modules.BagFrame:ShowCurrentCharacter()
-		characterDropdown:Hide()
-	end)
-
-	table.insert(characterDropdown.buttons, currentCharButton)
-	yOffset = yOffset - 20
-
-	-- Add separator
-	local separator = characterDropdown:CreateTexture(nil, "ARTWORK")
-	separator:SetHeight(1)
-	separator:SetWidth(180)
-	separator:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
-	separator:SetTexture(1, 1, 1, 0.2)
-	yOffset = yOffset - 4
-
-	-- Get current player's full name for comparison
+local function Guda_BagCharacterMenu_Initialize()
+	local characters = addon.Modules.DB:GetAllCharacters(false, true)
+	local info
 	local currentPlayerFullName = addon.Modules.DB:GetPlayerFullName()
+	local currentViewChar = addon.Modules.BagFrame:GetCurrentViewChar()
 
-	-- Add character buttons
-	for _, char in ipairs(chars) do
-	-- Capture variables in local scope for closure
+	for i, char in ipairs(characters) do
 		local charFullName = char.fullName
-		local charName = char.name
-		local charMoney = char.money or 0
 		local charClassToken = char.classToken
-		local isCurrentChar = (charFullName == currentPlayerFullName)
-
-		local charButton = CreateFrame("Button", nil, characterDropdown)
-		charButton:SetWidth(188)
-		charButton:SetHeight(20)
-		charButton:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
-
-		-- Button background on hover
-		local charBg = charButton:CreateTexture(nil, "BACKGROUND")
-		charBg:SetAllPoints()
-		charBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-		charBg:SetBlendMode("ADD")
-		charBg:SetAlpha(0)
 
 		-- Get class color
 		local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
@@ -1526,169 +1220,115 @@ function Guda_BagFrame_ToggleCharacterDropdown(button)
 			r, g, b = classColor.r, classColor.g, classColor.b
 		end
 
-		-- Button text
-		local charText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-		charText:SetPoint("LEFT", charButton, "LEFT", 8, 0)
-		charText:SetText(charName)
-		charText:SetTextColor(r, g, b)
+		-- Create colored name
+		local coloredName = addon.Modules.Utils:ColorText(char.name, r, g, b)
 
-		-- Money text
-		local moneyText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		moneyText:SetPoint("RIGHT", charButton, "RIGHT", -8, 0)
-		moneyText:SetText(addon.Modules.Utils:FormatMoney(charMoney))
-		moneyText:SetTextColor(0.7, 0.7, 0.7)
-
-		-- Button scripts
-		charButton:SetScript("OnEnter", function()
-			charBg:SetAlpha(0.3)
-		end)
-		charButton:SetScript("OnLeave", function()
-			charBg:SetAlpha(0)
-		end)
-		charButton:SetScript("OnClick", function()
-			if charFullName then
-				if isCurrentChar then
-				-- Clicking current character - show current live view
-					addon.Modules.BagFrame:ShowCurrentCharacter()
-				else
-				-- Clicking different character - show their stored bags
-					addon.Modules.BagFrame:ShowCharacter(charFullName)
-				end
-				characterDropdown:Hide()
+		info = {}
+		info.text = coloredName
+		info.func = function()
+			if charFullName == currentPlayerFullName then
+				addon.Modules.BagFrame:ShowCurrentCharacter()
 			else
-				addon:Print("Error: Character fullName is nil")
+				addon.Modules.BagFrame:ShowCharacter(charFullName)
 			end
-		end)
-
-		table.insert(characterDropdown.buttons, charButton)
-		yOffset = yOffset - 20
+		end
+		info.checked = (currentViewChar == charFullName or (not currentViewChar and charFullName == currentPlayerFullName))
+		UIDropDownMenu_AddButton(info)
 	end
-
-	-- Set dropdown height based on content
-	characterDropdown:SetHeight(math.abs(yOffset) + 8)
-
-	-- Show dropdown
-	characterDropdown:Show()
 end
 
--- Hide dropdown when clicking elsewhere
-local function HideCharacterDropdown()
-	if characterDropdown then
-		characterDropdown:Hide()
+-- Toggle character dropdown
+function Guda_BagFrame_ToggleCharacterDropdown(button)
+	local menuFrame = getglobal("Guda_BagCharacterMenu")
+	if not menuFrame then
+		menuFrame = CreateFrame("Frame", "Guda_BagCharacterMenu", UIParent, "UIDropDownMenuTemplate")
+	end
+	UIDropDownMenu_Initialize(menuFrame, Guda_BagCharacterMenu_Initialize, "MENU")
+	ToggleDropDownMenu(1, nil, menuFrame, "cursor", 0, 0)
+end
+
+-- Mailbox character dropdown
+local function Guda_BagMailboxMenu_Initialize()
+	local characters = addon.Modules.DB:GetAllCharacters(false, true)
+	local info
+
+	for i, char in ipairs(characters) do
+		local charFullName = char.fullName
+		local charClassToken = char.classToken
+
+		-- Get class color
+		local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
+		local r, g, b = 1, 1, 1
+		if classColor then
+			r, g, b = classColor.r, classColor.g, classColor.b
+		end
+
+		-- Create colored name
+		local coloredName = addon.Modules.Utils:ColorText(char.name, r, g, b)
+
+		info = {}
+		info.text = coloredName
+		info.func = function()
+			addon.Modules.MailboxFrame:ShowCharacter(charFullName)
+			if not Guda_MailboxFrame:IsShown() then
+				Guda_MailboxFrame:Show()
+			end
+		end
+		local mailboxViewChar = addon.Modules.MailboxFrame:GetCurrentViewChar()
+		info.checked = (mailboxViewChar == charFullName or (not mailboxViewChar and charFullName == addon.Modules.DB:GetPlayerFullName()))
+		UIDropDownMenu_AddButton(info)
+	end
+end
+
+-- Toggle mail dropdown
+function Guda_BagFrame_ToggleMailDropdown(button)
+	local menuFrame = getglobal("Guda_BagMailboxMenu")
+	if not menuFrame then
+		menuFrame = CreateFrame("Frame", "Guda_BagMailboxMenu", UIParent, "UIDropDownMenuTemplate")
+	end
+	UIDropDownMenu_Initialize(menuFrame, Guda_BagMailboxMenu_Initialize, "MENU")
+	ToggleDropDownMenu(1, nil, menuFrame, "cursor", 0, 0)
+end
+
+-- Bank character dropdown
+local function Guda_BagBankMenu_Initialize()
+	local characters = addon.Modules.DB:GetAllCharacters(false, true)
+	local info
+
+	for i, char in ipairs(characters) do
+		local charFullName = char.fullName
+		local charClassToken = char.classToken
+
+		-- Get class color
+		local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
+		local r, g, b = 1, 1, 1
+		if classColor then
+			r, g, b = classColor.r, classColor.g, classColor.b
+		end
+
+		-- Create colored name
+		local charName = char.name
+		local coloredName = addon.Modules.Utils:ColorText(charName, r, g, b)
+
+		info = {}
+		info.text = coloredName
+		info.func = function()
+			Guda_BagFrame_ShowCharacterBank(charFullName, charName)
+		end
+		local bankViewChar = addon.Modules.BankFrame:GetCurrentViewChar()
+		info.checked = (bankViewChar == charFullName or (not bankViewChar and charFullName == addon.Modules.DB:GetPlayerFullName()))
+		UIDropDownMenu_AddButton(info)
 	end
 end
 
 -- Toggle bank dropdown
 function Guda_BagFrame_ToggleBankDropdown(button)
--- Hide character dropdown if it's shown
-	if characterDropdown and characterDropdown:IsShown() then
-		characterDropdown:Hide()
+	local menuFrame = getglobal("Guda_BagBankMenu")
+	if not menuFrame then
+		menuFrame = CreateFrame("Frame", "Guda_BagBankMenu", UIParent, "UIDropDownMenuTemplate")
 	end
-
-	if bankDropdown and bankDropdown:IsShown() then
-		bankDropdown:Hide()
-		return
-	end
-
-	if not bankDropdown then
-	-- Create dropdown frame
-		bankDropdown = CreateFrame("Frame", "Guda_BankDropdown", UIParent)
-		bankDropdown:SetFrameStrata("DIALOG")
-		bankDropdown:SetWidth(200)
-		bankDropdown:SetBackdrop({
-			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-			edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-			tile = true,
-			tileSize = 16,
-			edgeSize = 16,
-			insets = { left = 4, right = 4, top = 4, bottom = 4 }
-		})
-		bankDropdown:SetBackdropColor(0, 0, 0, 0.95)
-		bankDropdown:EnableMouse(true)
-		bankDropdown:Hide()
-
-		bankDropdown.buttons = {}
-	end
-
-	-- Position dropdown below the button
-	bankDropdown:ClearAllPoints()
-	bankDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
-	-- Clear existing buttons
-	for _, btn in ipairs(bankDropdown.buttons) do
-		btn:Hide()
-	end
-	bankDropdown.buttons = {}
-
-	-- Get all characters on current realm
-	local chars = addon.Modules.DB:GetAllCharacters(false, true)
-
-	local yOffset = -8
-
-	-- Add character buttons
-	for _, char in ipairs(chars) do
-	-- Capture variables in local scope for closure
-		local charFullName = char.fullName
-		local charName = char.name
-		local charMoney = char.money or 0
-		local charClassToken = char.classToken
-
-		local charButton = CreateFrame("Button", nil, bankDropdown)
-		charButton:SetWidth(188)
-		charButton:SetHeight(20)
-		charButton:SetPoint("TOP", bankDropdown, "TOP", 0, yOffset)
-
-		-- Button background on hover
-		local charBg = charButton:CreateTexture(nil, "BACKGROUND")
-		charBg:SetAllPoints()
-		charBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-		charBg:SetBlendMode("ADD")
-		charBg:SetAlpha(0)
-
-		-- Get class color
-		local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
-		local r, g, b = 1, 1, 1
-		if classColor then
-			r, g, b = classColor.r, classColor.g, classColor.b
-		end
-
-		-- Button text
-		local charText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-		charText:SetPoint("LEFT", charButton, "LEFT", 8, 0)
-		charText:SetText(charName)
-		charText:SetTextColor(r, g, b)
-
-		-- Money text
-		local moneyText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		moneyText:SetPoint("RIGHT", charButton, "RIGHT", -8, 0)
-		moneyText:SetText(addon.Modules.Utils:FormatMoney(charMoney))
-		moneyText:SetTextColor(0.7, 0.7, 0.7)
-
-		-- Button scripts
-		charButton:SetScript("OnEnter", function()
-			charBg:SetAlpha(0.3)
-		end)
-		charButton:SetScript("OnLeave", function()
-			charBg:SetAlpha(0)
-		end)
-		charButton:SetScript("OnClick", function()
-			if charFullName then
-			-- Show bank for this character
-				Guda_BagFrame_ShowCharacterBank(charFullName, charName)
-				bankDropdown:Hide()
-			else
-				addon:Print("Error: Character fullName is nil")
-			end
-		end)
-
-		table.insert(bankDropdown.buttons, charButton)
-		yOffset = yOffset - 20
-	end
-
-	-- Set dropdown height based on content
-	bankDropdown:SetHeight(math.abs(yOffset) + 8)
-
-	-- Show dropdown
-	bankDropdown:Show()
+	UIDropDownMenu_Initialize(menuFrame, Guda_BagBankMenu_Initialize, "MENU")
+	ToggleDropDownMenu(1, nil, menuFrame, "cursor", 0, 0)
 end
 
 -- Show character's bank
@@ -2567,7 +2207,6 @@ function BagFrame:Initialize()
 	if bagFrame then
 		local originalOnMouseDown = bagFrame:GetScript("OnMouseDown")
 		bagFrame:SetScript("OnMouseDown", function()
-			HideCharacterDropdown()
 			if originalOnMouseDown then
 				originalOnMouseDown()
 			end

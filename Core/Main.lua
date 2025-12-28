@@ -18,6 +18,7 @@ function Main:Initialize()
         -- Initialize scanners
         addon.Modules.BagScanner:Initialize()
         addon.Modules.BankScanner:Initialize()
+        addon.Modules.MailboxScanner:Initialize()
         addon.Modules.MoneyTracker:Initialize()
 		addon.Modules.EquipmentScanner:Initialize()
 
@@ -25,6 +26,7 @@ function Main:Initialize()
         addon:Print("Initializing UI...")
         addon.Modules.BagFrame:Initialize()
         addon.Modules.BankFrame:Initialize()
+        addon.Modules.MailboxFrame:Initialize()
         
         addon:Debug("Checking QuestItemBar module...")
         if addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.isLoaded then
@@ -103,6 +105,10 @@ function Main:SetupSlashCommands()
             -- Toggle bank
             addon.Modules.BankFrame:Toggle()
 
+        elseif msg == "mail" or msg == "mailbox" then
+            -- Toggle mailbox
+            addon.Modules.MailboxFrame:Toggle()
+
         elseif msg == "sort" then
             -- Sort bags
             addon.Modules.SortEngine:SortBags()
@@ -143,6 +149,7 @@ function Main:SetupSlashCommands()
             addon:Print("Commands:")
             addon:Print("/guda - Toggle bags")
             addon:Print("/guda bank - Toggle bank")
+            addon:Print("/guda mail - Toggle mailbox")
             addon:Print("/guda sort - Sort bags")
             addon:Print("/guda sortbank - Sort bank")
             addon:Print("/guda track - Toggle item tracking")

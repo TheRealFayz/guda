@@ -7,12 +7,16 @@ addon.Modules.Tooltip = Tooltip
 -- Helper function to get item ID from link (Lua 5.0 compatible)
 local function GetItemIDFromLink(link)
 	if not link then return nil end
-	local _, _, itemID = strfind(link, "item:(%d+):?")
+    if type(link) == "number" then return link end
+    
+    -- Try to find itemID in a standard link or a raw item:ID string
+	local _, _, itemID = string.find(link, "item:(%d+)")
 	return itemID and tonumber(itemID) or nil
 end
 local function CountCurrentCharacterItems(itemID)
 	local bagCount = 0
 	local bankCount = 0
+	local mailCount = 0
 	local equippedCount = 0
 
 	-- Count current character's bags in real-time
@@ -83,6 +87,74 @@ local function CountCurrentCharacterItems(itemID)
 		end
 	end
 
+	-- Count current character's mailbox in real-time if mailbox is open
+	if addon.Modules.MailboxScanner and addon.Modules.MailboxScanner:IsMailboxOpen() then
+		local numInboxItems = GetInboxNumItems()
+		for i = 1, numInboxItems do
+			local _, _, _, _, _, _, _, hasItem = GetInboxHeaderInfo(i)
+			if hasItem then
+				-- Turtle WoW supports up to 12 attachments per mail.
+				-- We use GetInboxNumAttachments if available to avoid over-scanning.
+				local numAttachments = 0
+				if GetInboxNumAttachments then
+					numAttachments = GetInboxNumAttachments(i) or 0
+				end
+
+				-- Fallback: if we don't have the count but header says there's an item, assume at least 1.
+				if numAttachments == 0 and hasItem then
+					numAttachments = 1
+				end
+
+				for j = 1, numAttachments do -- Turtle WoW supports up to 12 attachments
+					local name, _, count = GetInboxItem(i, j)
+					if name then
+						local itemLink = addon.Modules.Utils:GetInboxItemLink(i, j)
+						if itemLink then
+							local slotItemID = GetItemIDFromLink(itemLink)
+							if slotItemID == itemID then
+								mailCount = mailCount + (count or 1)
+							end
+						end
+					end
+				end
+			end
+		end
+	else
+		-- Mailbox not open - use saved data
+		local playerName = addon.Modules.DB:GetPlayerFullName()
+		local charData = Guda_DB and Guda_DB.characters and Guda_DB.characters[playerName]
+		if charData and charData.mailbox and type(charData.mailbox) == "table" then
+			for _, mail in ipairs(charData.mailbox) do
+				if mail.items then
+					for _, item in ipairs(mail.items) do
+						local slotItemID = item.link and GetItemIDFromLink(item.link)
+						if slotItemID == itemID then
+							mailCount = mailCount + (item.count or 1)
+						elseif not slotItemID and item.name then
+							-- Fallback to name matching if link is missing
+							local targetName = GetItemInfo(itemID)
+							if targetName == item.name then
+								mailCount = mailCount + (item.count or 1)
+							end
+						end
+					end
+				elseif mail.item then -- Fallback for single item data structure
+					local item = mail.item
+					local slotItemID = item.link and GetItemIDFromLink(item.link)
+					if slotItemID == itemID then
+						mailCount = mailCount + (item.count or 1)
+					elseif not slotItemID and item.name then
+						-- Fallback to name matching if link is missing
+						local targetName = GetItemInfo(itemID)
+						if targetName == item.name then
+							mailCount = mailCount + (item.count or 1)
+						end
+					end
+				end
+			end
+		end
+	end
+
 	-- Count equipped items in real-time
 	for slotID = 1, 19 do  -- All equipment slots
 		local link = GetInventoryItemLink("player", slotID)
@@ -94,7 +166,7 @@ local function CountCurrentCharacterItems(itemID)
 		end
 	end
 
-	return bagCount, bankCount, equippedCount
+	return bagCount, bankCount, equippedCount, mailCount
 end
 
 -- Count items for a specific character with real-time data for current character
@@ -107,6 +179,7 @@ local function CountItemsForCharacter(itemID, characterData, isCurrentChar)
 	-- For other characters, use saved data
 	local bagCount = 0
 	local bankCount = 0
+	local mailCount = 0
 	local equippedCount = 0
 
 	-- Count bags from saved data
@@ -141,6 +214,38 @@ local function CountItemsForCharacter(itemID, characterData, isCurrentChar)
 		end
 	end
 
+	-- Count mailbox from saved data
+	if characterData.mailbox and type(characterData.mailbox) == "table" then
+		for _, mail in ipairs(characterData.mailbox) do
+			if mail.items then
+				for _, item in ipairs(mail.items) do
+					local slotItemID = item.link and GetItemIDFromLink(item.link)
+					if slotItemID == itemID then
+						mailCount = mailCount + (item.count or 1)
+					elseif not slotItemID and item.name then
+						-- Fallback to name matching if link is missing
+						local targetName = GetItemInfo(itemID)
+						if targetName == item.name then
+							mailCount = mailCount + (item.count or 1)
+						end
+					end
+				end
+			elseif mail.item then -- Fallback for single item data structure
+				local item = mail.item
+				local slotItemID = item.link and GetItemIDFromLink(item.link)
+				if slotItemID == itemID then
+					mailCount = mailCount + (item.count or 1)
+				elseif not slotItemID and item.name then
+					-- Fallback to name matching if link is missing
+					local targetName = GetItemInfo(itemID)
+					if targetName == item.name then
+						mailCount = mailCount + (item.count or 1)
+					end
+				end
+			end
+		end
+	end
+
 	-- Count equipped items from saved data
 	if characterData.equipped and type(characterData.equipped) == "table" then
 		for slotName, itemData in pairs(characterData.equipped) do
@@ -153,7 +258,7 @@ local function CountItemsForCharacter(itemID, characterData, isCurrentChar)
 		end
 	end
 
-	return bagCount, bankCount, equippedCount
+	return bagCount, bankCount, equippedCount, mailCount
 end
 
 
@@ -187,8 +292,15 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 		return
 	end
 
+	-- Guard against double-adding for the same item on the same tooltip
+	if tooltip.GudaInventoryAdded == itemID then
+		return
+	end
+	tooltip.GudaInventoryAdded = itemID
+
 	local totalBags = 0
 	local totalBank = 0
+	local totalMail = 0
 	local totalEquipped = 0
 	local characterCounts = {}
 	local hasAnyItems = false
@@ -201,18 +313,20 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	-- Ensure charData is actually a table and on current realm
 		if type(charData) == "table" and charData.realm == currentRealm then
 			local isCurrentChar = (charName == currentPlayerName)
-			local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData, isCurrentChar)
+			local bagCount, bankCount, equippedCount, mailCount = CountItemsForCharacter(itemID, charData, isCurrentChar)
 
-			if bagCount > 0 or bankCount > 0 or equippedCount > 0 then
+			if bagCount > 0 or bankCount > 0 or equippedCount > 0 or mailCount > 0 then
 				hasAnyItems = true
 				totalBags = totalBags + bagCount
 				totalBank = totalBank + bankCount
+				totalMail = totalMail + mailCount
 				totalEquipped = totalEquipped + equippedCount
 				table.insert(characterCounts, {
 					name = charData.name or charName,
 					classToken = charData.classToken,
 					bagCount = bagCount,
 					bankCount = bankCount,
+					mailCount = mailCount,
 					equippedCount = equippedCount,
 					isCurrent = isCurrentChar
 				})
@@ -221,7 +335,7 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	-- If charData is not a table (string, number, etc.), just skip it
 	end
 
-	local totalCount = totalBags + totalBank + totalEquipped
+	local totalCount = totalBags + totalBank + totalMail + totalEquipped
 
 	if hasAnyItems then
 
@@ -233,7 +347,16 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 
 		-- Total line with cyan label and white count
 		local totalText = "|cFF00FFFFTotal|r: |cFFFFFFFF" .. totalCount .. "|r"
-		local breakdownText = "(|cFF00FFFFBags|r: |cFFFFFFFF" .. totalBags .. "|r | |cFF00FFFFBank|r: |cFFFFFFFF" .. totalBank .. "|r)"
+		local breakdownParts = {}
+		if totalBags > 0 then table.insert(breakdownParts, "|cFF00FFFFBags|r: |cFFFFFFFF" .. totalBags .. "|r") end
+		if totalBank > 0 then table.insert(breakdownParts, "|cFF00FFFFBank|r: |cFFFFFFFF" .. totalBank .. "|r") end
+		if totalMail > 0 then table.insert(breakdownParts, "|cFF00FFFFMail|r: |cFFFFFFFF" .. totalMail .. "|r") end
+		if totalEquipped > 0 then table.insert(breakdownParts, "|cFF00FFFFEquipped|r: |cFFFFFFFF" .. totalEquipped .. "|r") end
+		
+		local breakdownText = ""
+		if table.getn(breakdownParts) > 0 then
+			breakdownText = "(" .. table.concat(breakdownParts, " | ") .. ")"
+		end
 		tooltip:AddDoubleLine(totalText, breakdownText, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
 		-- Sort with current character first
@@ -253,6 +376,9 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 			end
 			if charInfo.bankCount > 0 then
 				table.insert(parts, "|cFF00FFFFBank|r: |cFFFFFFFF" .. charInfo.bankCount .. "|r")
+			end
+			if charInfo.mailCount > 0 then
+				table.insert(parts, "|cFF00FFFFMail|r: |cFFFFFFFF" .. charInfo.mailCount .. "|r")
 			end
 			if charInfo.equippedCount > 0 then
 				table.insert(parts, "|cFF00FFFFEquipped|r: |cFFFFFFFF" .. charInfo.equippedCount .. "|r")
@@ -446,6 +572,19 @@ function Tooltip:Initialize()
 		return WithDeferredMoney(self, function()
 			local ret = oldSetAuctionItem(self, type, index)
 			local link = GetAuctionItemLink(type, index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
+	end
+
+	-- Hook SetInboxItem for mailbox
+	local oldSetInboxItem = GameTooltip.SetInboxItem
+	function GameTooltip:SetInboxItem(index, itemIndex)
+		return WithDeferredMoney(self, function()
+			local ret = oldSetInboxItem(self, index, itemIndex)
+			local link = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
 			if link then
 				Tooltip:AddInventoryInfo(self, link)
 			end

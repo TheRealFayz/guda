@@ -11,6 +11,8 @@ scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
 -- Check if an item is a quest item by scanning its tooltip
 -- Check if an item is a quest item by scanning its tooltip and determine type
 local function IsQuestItem(bagID, slotID, isBank)
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
 	if not bagID or not slotID then return false end
 
 	scanTooltip:ClearLines()
@@ -117,6 +119,8 @@ end
 
 -- Scan tooltip for red text that is NOT a durability line
 local function IsItemUnusable(bagID, slotID, isBank)
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
     if not bagID or not slotID then return false end
 
     -- Some clients require SetOwner before every SetBagItem/SetInventoryItem to populate lines
@@ -377,6 +381,15 @@ function Guda_ItemButton_OnLoad(self)
         
         -- Default behavior
         if ContainerFrameItemButton_OnClick then
+            -- Mailbox clicks should be ignored except for Ctrl+Click (preview)
+            -- OR if it's a live mail item for the current player and Shift+Click (loot)
+            if this.isMail then
+                if IsControlKeyDown() then
+                    ContainerFrameItemButton_OnClick(arg1)
+                end
+                return
+            end
+
             ContainerFrameItemButton_OnClick(arg1)
         end
     end)
@@ -425,6 +438,10 @@ end
 
 -- Set item data
 function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter, isReadOnly)
+    -- Proactively convert to number to avoid comparisons with strings in downstream functions
+    bagID = tonumber(bagID)
+    slotID = tonumber(slotID)
+    
     -- Proactively clear any previous cooldown overlay state before reassigning this pooled button
     do
         local cd = getglobal(self:GetName().."Cooldown") or self.cooldown
@@ -447,13 +464,20 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
     self.bagID = bagID
     self.slotID = slotID
     -- Also set the Blizzard slot ID for compatibility with ContainerFrameItemButtonTemplate behavior
-    if self.SetID and slotID then
-        self:SetID(slotID)
+    -- ALWAYS set ID to something (0 if nil) to avoid leaking old IDs when button is reused
+    if self.SetID then
+        self:SetID(slotID or 0)
     end
+    -- Explicitly set bag index to avoid Blizzard's ContainerFrameItemButton_OnEnter logic
+    -- from picking up this button as part of a real bag.
+    self.bagIndex = bagID or -100 -- Use an invalid bag index for non-bag buttons
     self.itemData = itemData
     self.isBank = isBank or false
     self.otherChar = otherCharName
     self.isReadOnly = isReadOnly or false  -- Track if this is read-only mode
+    self.isMail = false -- Clear mailbox flag by default
+    self.mailIndex = nil
+    self.mailItemIndex = nil
 
     -- Re-register for drag/drop every time (crucial for button reuse in Classic/Vanilla)
     if not self.isReadOnly and not self.otherChar then
@@ -481,6 +505,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         matchesFilter = true
     end
 
+    self.mailData = nil -- Clear mail metadata by default
+    
     -- Use Blizzard's default count fontstring (ContainerFrameItemButtonTemplate creates $parentCount)
     local countText = getglobal(self:GetName().."Count")
     local emptySlotBg = getglobal(self:GetName().."_EmptySlotBg")
@@ -538,7 +564,17 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
     -- Apply the determined texture and count
     if self.hasItem then
-        if SetItemButtonTexture then SetItemButtonTexture(self, displayTexture) end
+        if SetItemButtonTexture then 
+            SetItemButtonTexture(self, displayTexture) 
+        end
+        
+        -- Explicitly set and show icon texture as SetItemButtonTexture can be unreliable for custom paths in 1.12
+        local iconTexture = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
+        if iconTexture and displayTexture then
+            iconTexture:SetTexture(displayTexture)
+            iconTexture:Show()
+        end
+
         if SetItemButtonCount then SetItemButtonCount(self, displayCount or 1) end
         if emptySlotBg then emptySlotBg:Hide() end
         -- Update cooldown overlay for live items
@@ -624,6 +660,9 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
     -- For 1.12.1 compatibility, access textures using both methods and proper naming
     -- We'll set the NormalTexture later based on whether slot is empty or filled
+
+    -- ICON TEXTURE: Ensure we use the correct name ($parentIconTexture is standard)
+    local iconTexture = getglobal(self:GetName().."IconTexture") or getglobal(self:GetName().."Icon") or self.icon or self.Icon
 
     -- Pushed texture follows the button size/position
     local pushedTexture = getglobal(self:GetName().."PushedTexture")
@@ -744,7 +783,7 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 -- Special border for keyring items (cyan/blue)
                 self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 1)
                 self.qualityBorder:Show()
-            elseif itemQuality and itemLink then
+            elseif itemQuality then
                 -- Check settings to determine if we should show borders (nil-safe)
                 local showEquipmentBorder, showOtherBorder
                 if addon and addon.Modules and addon.Modules.DB and addon.Modules.DB.GetSetting then
@@ -765,10 +804,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
                 -- Check if item is equipment (nil-safe)
                 local isEquipment = false
-                if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsEquipment then
-                    isEquipment = addon.Modules.Utils:IsEquipment(itemLink)
-                elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsEquipment then
-                    isEquipment = Guda.Modules.Utils:IsEquipment(itemLink)
+                if itemLink then
+                    if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsEquipment then
+                        isEquipment = addon.Modules.Utils:IsEquipment(itemLink)
+                    elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsEquipment then
+                        isEquipment = Guda.Modules.Utils:IsEquipment(itemLink)
+                    end
                 end
 
                 -- Determine if we should show the border based on item type and settings
@@ -920,8 +961,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 self.questIcon:ClearAllPoints()
                 self.questIcon:SetPoint("TOPRIGHT", self, "TOPRIGHT", 1, 0)
             end
-        else
-            -- Hide icon for empty slots
+        elseif not self.isMail then
+            -- Hide icon for empty slots, but keep it for mailbox custom icons
             iconTexture:Hide()
         end
     end
@@ -929,7 +970,7 @@ end
 
 -- OnEnter handler (show tooltip)
 function Guda_ItemButton_OnEnter(self)
--- Highlight the corresponding bag button in the footer (works for empty and filled slots)
+    -- Highlight the corresponding bag button in the footer (works for empty and filled slots)
 	if not self.otherChar and self.bagID then
 		if self.isBank then
 		-- Bank item - highlight bank bag button
@@ -941,7 +982,7 @@ function Guda_ItemButton_OnEnter(self)
 	end
 
 	-- Early return for empty slots (no tooltip needed)
-	if not self.hasItem then
+	if not self.hasItem and not self.isMail then
 		return
 	end
 
@@ -949,7 +990,71 @@ function Guda_ItemButton_OnEnter(self)
 	-- important position of tooltip
 	GameTooltip:SetPoint("BOTTOMRIGHT", self, "TOPLEFT", 10, 0)
 
-	if self.otherChar or self.isReadOnly then
+    -- Mailbox tooltip handling
+    if self.isMail then
+        local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
+        local isMailboxOpen = addon.Modules.MailboxScanner and addon.Modules.MailboxScanner:IsMailboxOpen()
+        
+        if (not self.otherChar or self.otherChar == currentPlayerName) and self.mailIndex and isMailboxOpen then
+            -- Live mailbox for current character (only when mailbox is actually open)
+            GameTooltip:SetInboxItem(self.mailIndex, self.mailItemIndex or 1)
+        elseif self.itemData and (self.itemData.link or self.itemData.itemID) then
+            -- Read-only / other character mailbox OR current character mailbox when closed
+            GameTooltip.GudaViewedCharacter = self.otherChar or currentPlayerName
+            if self.itemData.link then
+                GameTooltip:SetHyperlink(self.itemData.link)
+            else
+                GameTooltip:SetHyperlink("item:" .. self.itemData.itemID .. ":0:0:0")
+            end
+        elseif self.itemData and self.itemData.name then
+            -- Money or generic mail
+            GameTooltip:AddLine(self.itemData.name, 1, 1, 1)
+        elseif self.mailData and self.mailData.money and self.mailData.money > 0 then
+            -- Fallback for money only mail
+            GameTooltip:AddLine("Money", 1, 1, 1)
+        end
+
+        -- Add mailbox metadata if available
+        local mailData = self.mailData
+        
+        if mailData then
+            -- If we already added a line (for money/generic), or SetHyperlink/SetInboxItem added lines,
+            -- we might want a separator if we're adding sender info.
+            if GameTooltip:NumLines() > 0 then
+                GameTooltip:AddLine(" ")
+            end
+
+            if mailData.sender then
+                GameTooltip:AddLine("From: " .. mailData.sender, 1, 1, 1)
+            end
+            if mailData.subject then
+                GameTooltip:AddLine("Subject: " .. mailData.subject, 1, 1, 0.8)
+            end
+            if (mailData.money or 0) > 0 and not (self.itemData and self.itemData.name == "Money") then
+                GameTooltip:AddLine("Money: " .. addon.Modules.Utils:FormatMoney(mailData.money), 1, 1, 1)
+            end
+            if (mailData.CODAmount or 0) > 0 then
+                GameTooltip:AddLine("COD: " .. addon.Modules.Utils:FormatMoney(mailData.CODAmount), 1, 0, 0)
+            end
+            if mailData.daysLeft then
+                GameTooltip:AddLine("Days left: " .. math.floor(mailData.daysLeft), 0.5, 0.5, 0.5)
+            end
+        end
+
+        -- Add Inventory counts for mailbox items at the very bottom
+        if addon.Modules.Tooltip and addon.Modules.Tooltip.AddInventoryInfo then
+            local link = self.itemData and (self.itemData.link or (self.itemData.itemID and ("item:" .. self.itemData.itemID .. ":0:0:0")))
+            if not link and self.mailIndex and isMailboxOpen then
+                link = addon.Modules.Utils:GetInboxItemLink(self.mailIndex, self.mailItemIndex or 1)
+            end
+            if link then
+                addon.Modules.Tooltip:AddInventoryInfo(GameTooltip, link)
+            end
+        end
+        
+        GameTooltip:Show()
+        return
+	elseif self.otherChar or self.isReadOnly then
 		GameTooltip.GudaViewedCharacter = self.otherChar
 		if self.itemData and self.itemData.link then
 			GameTooltip:SetHyperlink(self.itemData.link)
@@ -1017,8 +1122,9 @@ end
 -- OnLeave handler
 function Guda_ItemButton_OnLeave(self)
     -- Clear any viewed character hint on the tooltip when leaving
-    if GameTooltip and GameTooltip.GudaViewedCharacter then
+    if GameTooltip then
         GameTooltip.GudaViewedCharacter = nil
+        GameTooltip.GudaInventoryAdded = nil
     end
     GameTooltip:Hide()
     ResetCursor()

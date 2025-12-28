@@ -95,6 +95,36 @@ function Utils:GetItemInfo(itemLink)
     return nil
 end
 
+-- Create a hidden tooltip for scanning
+local scanTooltip = CreateFrame("GameTooltip", "GudaBagScanTooltip", nil, "GameTooltipTemplate")
+scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+
+-- Get item link from mailbox attachment (WoW 1.12.1 workaround)
+function Utils:GetInboxItemLink(index, itemIndex)
+    -- Try global function first (if it exists on this server/version)
+    if GetInboxItemLink then
+        -- Turtle WoW might support (index, itemIndex) for multiple attachments
+        local link = GetInboxItemLink(index, itemIndex or 1)
+        if link then return link end
+        
+        -- Fallback to single argument if that failed
+        link = GetInboxItemLink(index)
+        if link then return link end
+    end
+
+    -- In 1.12.1, GameTooltip:GetHyperlink() does not exist.
+    -- Let's try to use GetItemInfo(name) as the primary way.
+    local name, texture, count, quality = GetInboxItem(index, itemIndex or 1)
+    if name then
+        local itemName, link = GetItemInfo(name)
+        if link then
+            return link
+        end
+    end
+    
+    return nil
+end
+
 -- Get quality color
 function Utils:GetQualityColor(quality)
     local color = addon.Constants.QUALITY_COLORS[quality] or addon.Constants.QUALITY_COLORS[1]
@@ -156,12 +186,7 @@ function Utils:FormatTimeAgo(timestamp)
 end
 
 -- Create hidden tooltip for scanning (only once)
-local scanTooltip = nil
 local function GetScanTooltip()
-    if not scanTooltip then
-        scanTooltip = CreateFrame("GameTooltip", "GudaBagScanTooltip", nil, "GameTooltipTemplate")
-        scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
-    end
     return scanTooltip
 end
 
