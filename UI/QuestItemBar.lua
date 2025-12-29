@@ -192,7 +192,7 @@ function QuestItemBar:Update()
             button:SetScript("OnReceiveDrag", function() end)
             button:SetScript("OnMouseDown", function()
                 if arg1 == "LeftButton" then
-                    if IsShiftKeyDown() then
+                    if IsShiftKeyDown() and not (CursorHasItem and CursorHasItem()) then
                         this:GetParent():StartMoving()
                         this:GetParent().isMoving = true
                     end

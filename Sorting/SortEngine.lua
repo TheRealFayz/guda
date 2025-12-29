@@ -1475,7 +1475,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
 
 			-- PROGRESSIVE DELAY: Calculate delay based on remaining complexity
-			local baseDelay = 1.2
+			local baseDelay = 0.9
 			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.06, 2.5) -- max 2.5 seconds
 			local totalDelay = baseDelay + complexityDelay
 

@@ -95,7 +95,7 @@ function TrackedItemBar:Update()
             button:SetScript("OnReceiveDrag", function() end)
             button:SetScript("OnMouseDown", function()
                 if arg1 == "LeftButton" then
-                    if IsShiftKeyDown() then
+                    if IsShiftKeyDown() and not (CursorHasItem and CursorHasItem()) then
                         this:GetParent():StartMoving()
                         this:GetParent().isMoving = true
                     end
@@ -190,8 +190,10 @@ function TrackedItemBar:Initialize()
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnMouseDown", function()
         if arg1 == "LeftButton" then
-            this:StartMoving()
-            this.isMoving = true
+            if IsShiftKeyDown() and not (CursorHasItem and CursorHasItem()) then
+                this:StartMoving()
+                this.isMoving = true
+            end
         end
     end)
     frame:SetScript("OnMouseUp", function()
