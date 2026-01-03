@@ -573,6 +573,32 @@ function Utils:GetItemPreferredContainer(itemLink)
     return nil
 end
 
+-- Check if an item is "Binds when equipped" by scanning its tooltip
+function Utils:IsBindOnEquip(bagID, slotID)
+    if not bagID or not slotID then return false end
+    
+    local tooltip = GetScanTooltip()
+    if not tooltip then return false end
+    
+    tooltip:ClearLines()
+    tooltip:SetBagItem(bagID, slotID)
+
+    local numLines = tooltip:NumLines()
+    if not numLines or numLines == 0 then return false end
+    
+    -- Check tooltip lines for "Binds when equipped"
+    for i = 1, numLines do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text and string.find(string.lower(text), "binds when equipped") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Check if an item is equipment (armor, weapon, or other equippable)
 -- Returns: true if item is equipment, false otherwise
 function Utils:IsEquipment(itemLink)

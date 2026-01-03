@@ -390,7 +390,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     -- Group items by category
     local categories = {}
     local categoryList = {
-        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items", "Keyring"
+        "Weapon", "Armor", "BoE", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items", "Keyring"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
     
@@ -409,6 +409,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         local cat = "Miscellaneous"
                         local itemName = itemData.name or ""
 						local itemType = itemData.type or ""
+
                         -- Detect consumable restore/eat/drink tag for current character only
                         if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.GetConsumableRestoreTag then
                             local tag = addon.Modules.Utils:GetConsumableRestoreTag(bagID, slotID)
@@ -461,16 +462,29 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                             end
                             table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
 
-                        -- Priority 4: Equipment (Weapon and Armor)
+                        -- Priority 6: BoE Equipment (Armor/Weapons that bind when equipped)
+                        elseif (itemData.class == "Weapon" or itemData.class == "Armor") and
+                               not isOtherChar then
+                            -- Check for BoE
+                            local isBoE = addon.Modules.Utils:IsBindOnEquip(bagID, slotID)
+                            if isBoE then
+                                table.insert(categories["BoE"], {bagID = bagID, slotID = slotID, itemData = itemData})
+                            else
+                                -- Not BoE, put in regular category
+                                table.insert(categories[itemData.class], {bagID = bagID, slotID = slotID, itemData = itemData})
+                            end
+
+                        -- Priority 7: Equipment (other equippable items like trinkets, rings, or viewing other character's gear)
                         elseif itemData.equipSlot and itemData.equipSlot ~= "" then
+                            -- For other characters, can't scan tooltip so just categorize normally
                             if itemData.class == "Weapon" or itemData.class == "Armor" then
                                 cat = itemData.class
                             else
                                 cat = "Armor"
                             end
                             table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
-                        
-                        -- Priority 5: Other Categories
+
+                        -- Priority 8: Other Categories
                         else
                             cat = itemData.class or "Miscellaneous"
                             if not categories[cat] then cat = "Miscellaneous" end
@@ -587,8 +601,8 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             local displayName = catName
             header.fullName = catName
             header.isShortened = false
-            if string.len(displayName) > 10 and numItems < 2 then
-                displayName = string.sub(displayName, 1, 7) .. "..."
+            if string.len(displayName) > 8 and numItems < 2 then
+                displayName = string.sub(displayName, 1, 6) .. "..."
                 header.isShortened = true
             end
             header.text:SetText(displayName)
