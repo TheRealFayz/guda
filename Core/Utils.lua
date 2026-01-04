@@ -574,16 +574,31 @@ function Utils:GetItemPreferredContainer(itemLink)
 end
 
 -- Check if an item is "Binds when equipped" by scanning its tooltip
-function Utils:IsBindOnEquip(bagID, slotID)
+-- For bank items, use itemLink since SetBagItem may not work for bank slots
+function Utils:IsBindOnEquip(bagID, slotID, itemLink)
     if not bagID or not slotID then return false end
     
     local tooltip = GetScanTooltip()
     if not tooltip then return false end
     
     tooltip:ClearLines()
+    
+    -- Try SetBagItem first (works for regular bags and bank when open)
     tooltip:SetBagItem(bagID, slotID)
-
+    
     local numLines = tooltip:NumLines()
+    
+    -- If no lines and we have itemLink, try SetHyperlink with itemString as fallback
+    if (not numLines or numLines == 0) and itemLink then
+        -- Extract itemString from link (format: item:12345:0:0:0...)
+        local _, _, itemString = string.find(itemLink, "(item:%d+:%d+:%d+:%d+)")
+        if itemString then
+            tooltip:ClearLines()
+            tooltip:SetHyperlink(itemString)
+            numLines = tooltip:NumLines()
+        end
+    end
+    
     if not numLines or numLines == 0 then return false end
     
     -- Check tooltip lines for "Binds when equipped"

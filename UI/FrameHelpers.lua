@@ -82,7 +82,7 @@ function Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, 
 
     -- Priority 6: BoE Equipment (Armor/Weapons that bind when equipped)
     if (itemData.class == "Weapon" or itemData.class == "Armor") and not isOtherChar then
-        local isBoE = addon.Modules.Utils:IsBindOnEquip(bagID, slotID)
+        local isBoE = addon.Modules.Utils:IsBindOnEquip(bagID, slotID, itemData.link)
         if isBoE then
             table.insert(categories["BoE"], {bagID = bagID, slotID = slotID, itemData = itemData})
         else
