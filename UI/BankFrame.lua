@@ -192,10 +192,19 @@ function BankFrame:Update()
 
     if viewType == "category" then
         self:DisplayItemsByCategory(bankData, isOtherChar, charName)
-        if getglobal("Guda_BankFrame_SortButton") then getglobal("Guda_BankFrame_SortButton"):Hide() end
+        -- Show sort button with merge icon/tooltip for category view
+        local sortBtn = getglobal("Guda_BankFrame_SortButton")
+        if sortBtn then
+            sortBtn:Show()
+            sortBtn.isCategoryView = true
+        end
     else
         self:DisplayItems(bankData, isOtherChar, charName)
-        if getglobal("Guda_BankFrame_SortButton") then getglobal("Guda_BankFrame_SortButton"):Show() end
+        local sortBtn = getglobal("Guda_BankFrame_SortButton")
+        if sortBtn then
+            sortBtn:Show()
+            sortBtn.isCategoryView = false
+        end
     end
 
     -- Update money
@@ -939,6 +948,13 @@ function Guda_BankFrame_Sort()
 		return
 	end
 
+	-- Check if we're in category view - only merge stacks
+	local sortBtn = getglobal("Guda_BankFrame_SortButton")
+	if sortBtn and sortBtn.isCategoryView then
+		Guda_BankFrame_MergeStacks()
+		return
+	end
+
  local success, message = addon.Modules.SortEngine:ExecuteSort(
         function() return addon.Modules.SortEngine:SortBankPass() end,
         function() return addon.Modules.SortEngine:AnalyzeBank() end,
@@ -949,6 +965,160 @@ function Guda_BankFrame_Sort()
 	if not success and message == "already sorted" then
 		addon:Print("Bank is already sorted!")
 	end
+end
+
+-- Merge stacks only (for category view) - queue-based approach like BagShui
+function Guda_BankFrame_MergeStacks()
+	if isReadOnlyMode or currentViewChar then
+		addon:Print("Cannot merge stacks in read-only mode!")
+		return
+	end
+
+	if not addon.Modules.BankScanner:IsBankOpen() then
+		addon:Print("Bank must be open to merge stacks!")
+		return
+	end
+
+	local bagIDs = addon.Constants.BANK_BAGS
+	local moveQueue = {}
+
+	-- Collect all partial stacks grouped by item
+	local partialStacks = {}
+	for _, bagID in ipairs(bagIDs) do
+		local numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+		if numSlots and numSlots > 0 then
+			for slot = 1, numSlots do
+				local link = GetContainerItemLink(bagID, slot)
+				if link then
+					local texture, count = GetContainerItemInfo(bagID, slot)
+					local _, _, itemID = string.find(link, "item:(%d+)")
+					itemID = tonumber(itemID)
+					
+					if itemID then
+						local _, _, _, _, _, _, itemStackCount = GetItemInfo(itemID)
+						local maxStack = tonumber(itemStackCount) or 1
+						
+						-- Only track items that can stack and aren't full
+						if maxStack > 1 and count < maxStack then
+							local groupKey = tostring(itemID)
+							if not partialStacks[groupKey] then
+								partialStacks[groupKey] = {
+									maxStack = maxStack,
+									stacks = {}
+								}
+							end
+							table.insert(partialStacks[groupKey].stacks, {
+								bagID = bagID,
+								slot = slot,
+								count = count
+							})
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Build move queue for each item group
+	for _, group in pairs(partialStacks) do
+		if table.getn(group.stacks) > 1 then
+			-- Sort stacks: larger stacks first (targets), smaller stacks last (sources)
+			table.sort(group.stacks, function(a, b)
+				return a.count > b.count
+			end)
+
+			local sourceLoopStart = table.getn(group.stacks)
+
+			-- Process targets from start, sources from end
+			for targetIdx = 1, table.getn(group.stacks) - 1 do
+				local target = group.stacks[targetIdx]
+				
+				if target.count < group.maxStack and target.count > 0 then
+					for sourceIdx = sourceLoopStart, targetIdx + 1, -1 do
+						local source = group.stacks[sourceIdx]
+						
+						if source.count > 0 and target.count < group.maxStack then
+							-- Queue this move
+							table.insert(moveQueue, {
+								source = source,
+								target = target,
+								maxStack = group.maxStack
+							})
+							
+							-- Calculate changes (for queue planning)
+							local oldTargetCount = target.count
+							target.count = math.min(target.count + source.count, group.maxStack)
+							source.count = source.count - (target.count - oldTargetCount)
+							
+							-- Move source pointer if depleted
+							if source.count == 0 then
+								sourceLoopStart = sourceLoopStart - 1
+							end
+							
+							-- Stop if target is full
+							if target.count >= group.maxStack then
+								break
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if table.getn(moveQueue) == 0 then
+		addon:Print("No stacks to merge")
+		return
+	end
+
+	-- Process queue with delays
+	local queueIndex = 1
+	local retryCount = 0
+	local totalMoves = table.getn(moveQueue)
+	
+	local function ProcessNextMove()
+		if queueIndex > table.getn(moveQueue) then
+			addon:Print("Merged " .. totalMoves .. " stack(s)")
+			BankFrame:Update()
+			return
+		end
+		
+		local move = moveQueue[queueIndex]
+		local source = move.source
+		local target = move.target
+		
+		-- Check if items are locked
+		local _, _, sourceLocked = GetContainerItemInfo(source.bagID, source.slot)
+		local _, _, targetLocked = GetContainerItemInfo(target.bagID, target.slot)
+		
+		if sourceLocked or targetLocked then
+			retryCount = retryCount + 1
+			if retryCount < 10 then
+				-- Retry after delay
+				Guda_ScheduleTimer(0.3, ProcessNextMove)
+				return
+			else
+				-- Give up on this move
+				retryCount = 0
+				queueIndex = queueIndex + 1
+				Guda_ScheduleTimer(0.1, ProcessNextMove)
+				return
+			end
+		end
+		
+		-- Perform the move
+		ClearCursor()
+		PickupContainerItem(source.bagID, source.slot)
+		PickupContainerItem(target.bagID, target.slot)
+		ClearCursor()
+		
+		-- Move to next
+		retryCount = 0
+		queueIndex = queueIndex + 1
+		Guda_ScheduleTimer(0.15, ProcessNextMove)
+	end
+	
+	ProcessNextMove()
 end
 
 -- Switch to Blizzard bank UI

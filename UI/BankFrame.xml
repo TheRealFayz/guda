@@ -98,7 +98,12 @@
                     </OnClick>
                     <OnEnter>
                         GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                        GameTooltip:SetText("Sort Bank")
+                        if this.isCategoryView then
+                            GameTooltip:SetText("Merge Stacks")
+                            GameTooltip:AddLine("Combines split stacks of the same item", 0.7, 0.7, 0.7)
+                        else
+                            GameTooltip:SetText("Sort Bank")
+                        end
                         GameTooltip:Show()
                     </OnEnter>
                     <OnLeave>
