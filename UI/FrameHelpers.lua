@@ -54,12 +54,20 @@ function Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, 
     end
 
     -- Priority 3: Quest Items
-    -- Check multiple sources: tooltip scan, itemClass, and itemType (same logic as ItemButton display)
+    -- Check multiple sources: tooltip scan, itemClass, itemType, and QuestItemsDB
     local isQuestItem = false
     if itemData.class == "Quest" or itemData.type == "Quest" then
         isQuestItem = true
     elseif not isOtherChar then
         isQuestItem = addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID)
+    end
+    -- Also check the QuestItemsDB for known faction-specific quest items
+    if not isQuestItem and itemData.link then
+        local itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+        if itemID and addon.IsQuestItemByID then
+            local playerFaction = UnitFactionGroup("player")
+            isQuestItem = addon:IsQuestItemByID(itemID, playerFaction)
+        end
     end
     if isQuestItem then
         table.insert(categories["Quest"], {bagID = bagID, slotID = slotID, itemData = itemData})

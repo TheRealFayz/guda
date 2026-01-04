@@ -62,14 +62,21 @@ local function IsQuestItem(bagID, slotID, isBank)
              local itemName, _, _, _, itemCategory, itemType = addon.Modules.Utils:GetItemInfoSafe(itemID)
              if itemCategory == "Quest" or itemType == "Quest" then
                  isQuestItem = true
-                 -- For quest items, try a light heuristic to flag starters by name
-                 --if itemName and (string.find(itemName, "Note") or
-                 --    string.find(itemName, "Letter") or
-                 --    string.find(itemName, "Orders") or
-                 --    string.find(itemName, "Document") or
-                 --    string.find(itemName, "Tablet")) then
-                 --    isQuestStarter = true
-                 --end
+             end
+         end
+     end
+ end
+
+ -- Check the QuestItemsDB for known faction-specific quest items
+ if not isQuestItem then
+     local link = GetContainerItemLink(bagID, slotID)
+     if link and addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID then
+         local itemID = addon.Modules.Utils:ExtractItemID(link)
+         if itemID and addon.IsQuestItemByID then
+             local playerFaction = UnitFactionGroup("player")
+             local isDBQuestItem = addon:IsQuestItemByID(itemID, playerFaction)
+             if isDBQuestItem then
+                 isQuestItem = true
              end
          end
      end

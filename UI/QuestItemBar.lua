@@ -75,6 +75,21 @@ function QuestItemBar:CheckQuestItemUsable(bagID, slotID)
         end
     end
 
+    -- Check the QuestItemsDB for known faction-specific quest items
+    if not isQuestItem then
+        local link = GetContainerItemLink(bagID, slotID)
+        if link and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID then
+            local itemID = addon.Modules.Utils:ExtractItemID(link)
+            if itemID and addon.IsQuestItemByID then
+                local playerFaction = UnitFactionGroup("player")
+                local isDBQuestItem = addon:IsQuestItemByID(itemID, playerFaction)
+                if isDBQuestItem then
+                    isQuestItem = true
+                end
+            end
+        end
+    end
+
     return isQuestItem, isQuestStarter, isUsable
 end
 

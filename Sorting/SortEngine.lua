@@ -607,6 +607,12 @@ local function AddSortKeys(items)
 							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
 						elseif IsQuestItemTooltip(item.bagID, item.slot) then
 							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
+						elseif addon.IsQuestItemByID then
+							-- Check QuestItemsDB for faction-specific quest items
+							local playerFaction = UnitFactionGroup("player")
+							if addon:IsQuestItemByID(itemID, playerFaction) then
+								item.sortedClass = CATEGORY_ORDER["Quest"] or 7
+							end
 						end
 					end
 					item.equipSlotOrder = 999
@@ -635,6 +641,12 @@ local function AddSortKeys(items)
 					item.isQuest = true
 					if IsQuestItemStarter(item.bagID, item.slot) then item.isQuestStarter = true end
 					if IsQuestItemUsable(item.bagID, item.slot) then item.isQuestUsable = true end
+				elseif addon.IsQuestItemByID then
+					-- Check QuestItemsDB for faction-specific quest items
+					local playerFaction = UnitFactionGroup("player")
+					if addon:IsQuestItemByID(itemID, playerFaction) then
+						item.isQuest = true
+					end
 				end
 
 				-- Texture pattern for grouping similar items (especially trade goods)
