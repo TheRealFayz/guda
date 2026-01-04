@@ -647,12 +647,25 @@ function Tooltip:Initialize()
 		addon:Debug("Tooltip cache cleared")
 	end
 
-	-- Clear cache on bag updates
+	-- Clear cache on bag updates (debounced to prevent lag on rapid updates)
 	local frame = CreateFrame("Frame")
+	local cacheClearPending = false
 	frame:RegisterEvent("BAG_UPDATE")
 	frame:SetScript("OnEvent", function()
 		if event == "BAG_UPDATE" then
-			Tooltip:ClearCache()
+			if cacheClearPending then return end
+			cacheClearPending = true
+			-- Debounce: batch rapid BAG_UPDATE events
+			local debounceFrame = CreateFrame("Frame")
+			debounceFrame.elapsed = 0
+			debounceFrame:SetScript("OnUpdate", function()
+				this.elapsed = this.elapsed + arg1
+				if this.elapsed >= 0.2 then
+					this:SetScript("OnUpdate", nil)
+					cacheClearPending = false
+					Tooltip:ClearCache()
+				end
+			end)
 		end
 	end)
 

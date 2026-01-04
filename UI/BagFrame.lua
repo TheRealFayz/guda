@@ -2235,11 +2235,33 @@ function BagFrame:Initialize()
 		end
 	end)
 
- -- Update on bag changes
+ -- Debounce state for BagFrame updates (prevents lag from rapid events)
+ local bagUpdatePending = false
+ local lockUpdatePending = false
+
+ -- Helper to schedule a debounced BagFrame update
+ local function ScheduleBagFrameUpdate(delay)
+     if bagUpdatePending then return end
+     bagUpdatePending = true
+     local debounceFrame = CreateFrame("Frame")
+     debounceFrame.elapsed = 0
+     debounceFrame:SetScript("OnUpdate", function()
+         this.elapsed = this.elapsed + arg1
+         if this.elapsed >= delay then
+             this:SetScript("OnUpdate", nil)
+             bagUpdatePending = false
+             if not currentViewChar and Guda_BagFrame:IsShown() then
+                 BagFrame:Update()
+             end
+         end
+     end)
+ end
+
+ -- Update on bag changes (debounced to prevent lag on rapid bag updates)
  addon.Modules.Events:OnBagUpdate(function()
-     if not currentViewChar then
-         BagFrame:Update()
-     end
+     if currentViewChar then return end
+     if not Guda_BagFrame:IsShown() then return end
+     ScheduleBagFrameUpdate(0.1)
  end, "BagFrame")
 
  -- Update item cooldown overlays when item cooldowns change
@@ -2256,11 +2278,25 @@ function BagFrame:Initialize()
 		BagFrame:UpdateMoney()
 	end, "BagFrame")
 
-	-- Update when items get locked/unlocked (for trading, mailing, etc.)
+	-- Update when items get locked/unlocked (debounced for trading, mailing, etc.)
 	addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
-		if not currentViewChar then
-			BagFrame:Update()
-		end
+		if currentViewChar then return end
+		if not Guda_BagFrame:IsShown() then return end
+		-- Use slightly longer debounce for lock changes (they fire rapidly during drags)
+		if lockUpdatePending then return end
+		lockUpdatePending = true
+		local debounceFrame = CreateFrame("Frame")
+		debounceFrame.elapsed = 0
+		debounceFrame:SetScript("OnUpdate", function()
+			this.elapsed = this.elapsed + arg1
+			if this.elapsed >= 0.15 then
+				this:SetScript("OnUpdate", nil)
+				lockUpdatePending = false
+				if Guda_BagFrame:IsShown() then
+					BagFrame:Update()
+				end
+			end
+		end)
 	end, "BagFrame")
 
 	-- Auto-open bag frame when mail is opened

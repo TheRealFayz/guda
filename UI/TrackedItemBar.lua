@@ -212,9 +212,22 @@ function TrackedItemBar:Initialize()
         frame:SetPoint(pos.point, UIParent, pos.relativePoint or pos.point, pos.x, pos.y)
     end
     
-    -- Register for events
+    -- Register for events with debouncing to prevent lag on rapid bag updates
+    local bagUpdatePending = false
     addon.Modules.Events:Register("BAG_UPDATE", function()
-        TrackedItemBar:Update()
+        if bagUpdatePending then return end
+        bagUpdatePending = true
+        -- Debounce: wait 0.15 seconds before updating to batch rapid events
+        local debounceFrame = CreateFrame("Frame")
+        debounceFrame.elapsed = 0
+        debounceFrame:SetScript("OnUpdate", function()
+            this.elapsed = this.elapsed + arg1
+            if this.elapsed >= 0.15 then
+                this:SetScript("OnUpdate", nil)
+                bagUpdatePending = false
+                TrackedItemBar:Update()
+            end
+        end)
     end, "TrackedItemBar")
     
     addon.Modules.Events:Register("PLAYER_ENTERING_WORLD", function()

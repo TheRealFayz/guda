@@ -1447,26 +1447,63 @@ function BankFrame:Initialize()
     end, "BankFrameUI")
 
     -- Update on bag changes while bank is open
+    -- Debounce state for BankFrame updates (prevents lag from rapid events)
+    local bankUpdatePending = false
+    local bankLockUpdatePending = false
+
+    -- Helper to schedule a debounced BankFrame update
+    local function ScheduleBankFrameUpdate(delay)
+        if bankUpdatePending then return end
+        if not addon.Modules.BankScanner:IsBankOpen() then return end
+        if currentViewChar then return end
+        bankUpdatePending = true
+        local debounceFrame = CreateFrame("Frame")
+        debounceFrame.elapsed = 0
+        debounceFrame:SetScript("OnUpdate", function()
+            this.elapsed = this.elapsed + arg1
+            if this.elapsed >= delay then
+                this:SetScript("OnUpdate", nil)
+                bankUpdatePending = false
+                if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
+                    addon.Modules.BankFrame:Update()
+                end
+            end
+        end)
+    end
+
     addon.Modules.Events:OnBagUpdate(function()
         if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-            addon.Modules.BankFrame:Update()
+            ScheduleBankFrameUpdate(0.1)
         end
     end, "BankFrameUI")
 
-    -- Update when items get locked/unlocked (for trading, mailing, etc.)
+    -- Update when items get locked/unlocked (debounced for trading, mailing, etc.)
     addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
-        if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-            addon.Modules.BankFrame:Update()
-        end
+        if not addon.Modules.BankScanner:IsBankOpen() then return end
+        if currentViewChar then return end
+        if bankLockUpdatePending then return end
+        bankLockUpdatePending = true
+        local debounceFrame = CreateFrame("Frame")
+        debounceFrame.elapsed = 0
+        debounceFrame:SetScript("OnUpdate", function()
+            this.elapsed = this.elapsed + arg1
+            if this.elapsed >= 0.15 then
+                this:SetScript("OnUpdate", nil)
+                bankLockUpdatePending = false
+                if addon.Modules.BankScanner:IsBankOpen() then
+                    addon.Modules.BankFrame:Update()
+                end
+            end
+        end)
     end, "BankFrameUI")
 
-    -- Register bank-specific update events (pfUI style)
+    -- Register bank-specific update events (pfUI style, debounced)
     local updateFrame = CreateFrame("Frame")
     updateFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
     updateFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
     updateFrame:SetScript("OnEvent", function()
         if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-            addon.Modules.BankFrame:Update()
+            ScheduleBankFrameUpdate(0.1)
         end
     end)
 

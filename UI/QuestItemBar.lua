@@ -24,13 +24,18 @@ local function GetScanTooltip()
     return scanTooltip
 end
 
--- Check if an item is usable by scanning its tooltip for "Use:"
-local function IsItemUsable(bagID, slotID)
-    if not bagID or not slotID then return false end
+-- Combined function to check if an item is a quest item AND usable in ONE tooltip scan
+-- This avoids the expensive double-scan that was causing lag
+function QuestItemBar:CheckQuestItemUsable(bagID, slotID)
+    if not bagID or not slotID then return false, false, false end
 
     local tooltip = GetScanTooltip()
     tooltip:ClearLines()
     tooltip:SetBagItem(bagID, slotID)
+
+    local isQuestItem = false
+    local isQuestStarter = false
+    local isUsable = false
 
     for i = 1, tooltip:NumLines() do
         local line = getglobal("Guda_QuestBarScanTooltipTextLeft" .. i)
@@ -38,75 +43,25 @@ local function IsItemUsable(bagID, slotID)
             local text = line:GetText()
             if text then
                 local tl = string.lower(text)
-                -- Match explicit usability phrases (case-insensitive). Avoid generic 'quest item' matches.
-                if string.find(tl, "use:") or string.find(tl, "begins a quest") or string.find(tl, "starts a quest") then
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
-
--- Scan bags for quest items
-function QuestItemBar:ScanForQuestItems()
-    questItems = {}
-    
-    local foundAny = false
-    -- Scan backpack and 4 bags
-    for bagID = 0, 4 do
-        local numSlots = GetContainerNumSlots(bagID)
-        for slotID = 1, numSlots do
-            local texture, count = GetContainerItemInfo(bagID, slotID)
-            if texture then
-                local isQuest, isStarter = self:IsQuestItem(bagID, slotID)
-                if isQuest and IsItemUsable(bagID, slotID) then
-                    table.insert(questItems, {
-                        bagID = bagID,
-                        slotID = slotID,
-                        texture = texture,
-                        count = count
-                    })
-                    foundAny = true
-                end
-            end
-        end
-    end
-
-    -- Disabled DB fallback: only show items actually present in bags and usable
-    -- Fallback to database caused non-usable quest items to be shown in the bar
-    -- Returning early to ensure only real, usable items from bags are considered
-    return
-
-end
-
--- Local implementation of IsQuestItem (similar to the one in ItemButton.lua)
-function QuestItemBar:IsQuestItem(bagID, slotID)
-    local tooltip = GetScanTooltip()
-    tooltip:ClearLines()
-    tooltip:SetBagItem(bagID, slotID)
-
-    local isQuestItem = false
-    local isQuestStarter = false
-
-    for i = 1, tooltip:NumLines() do
-        local line = getglobal("Guda_QuestBarScanTooltipTextLeft" .. i)
-        if line then
-            local text = line:GetText()
-            if text then
+                -- Check for quest item indicators
                 if string.find(text, "Quest Starter") or
                    string.find(text, "This Item Begins a Quest") or
                    string.find(text, "Use: Starts a Quest") then
                     isQuestItem = true
                     isQuestStarter = true
-                    break
+                    isUsable = true -- Quest starters are always usable
                 elseif string.find(text, "Quest Item") then
                     isQuestItem = true
+                end
+                -- Check for usability (case-insensitive)
+                if string.find(tl, "use:") or string.find(tl, "begins a quest") or string.find(tl, "starts a quest") then
+                    isUsable = true
                 end
             end
         end
     end
 
+    -- Fallback check for quest category if not detected from tooltip
     if not isQuestItem then
         local link = GetContainerItemLink(bagID, slotID)
         if link and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID and addon.Modules.Utils.GetItemInfoSafe then
@@ -120,6 +75,37 @@ function QuestItemBar:IsQuestItem(bagID, slotID)
         end
     end
 
+    return isQuestItem, isQuestStarter, isUsable
+end
+
+-- Scan bags for quest items (optimized: single tooltip scan per item)
+function QuestItemBar:ScanForQuestItems()
+    questItems = {}
+
+    -- Scan backpack and 4 bags
+    for bagID = 0, 4 do
+        local numSlots = GetContainerNumSlots(bagID)
+        for slotID = 1, numSlots do
+            local texture, count = GetContainerItemInfo(bagID, slotID)
+            if texture then
+                -- Single combined check instead of two separate tooltip scans
+                local isQuest, isStarter, isUsable = self:CheckQuestItemUsable(bagID, slotID)
+                if isQuest and isUsable then
+                    table.insert(questItems, {
+                        bagID = bagID,
+                        slotID = slotID,
+                        texture = texture,
+                        count = count
+                    })
+                end
+            end
+        end
+    end
+end
+
+-- Legacy function kept for compatibility (now calls combined function)
+function QuestItemBar:IsQuestItem(bagID, slotID)
+    local isQuestItem, isQuestStarter, _ = self:CheckQuestItemUsable(bagID, slotID)
     return isQuestItem, isQuestStarter
 end
 
@@ -639,9 +625,22 @@ function QuestItemBar:Initialize()
         frame:SetPoint(pos.point, UIParent, pos.relativePoint or pos.point, pos.x, pos.y)
     end
     
-    -- Register for events
+    -- Register for events with debouncing to prevent lag on rapid bag updates
+    local bagUpdatePending = false
     addon.Modules.Events:Register("BAG_UPDATE", function()
-        QuestItemBar:Update()
+        if bagUpdatePending then return end
+        bagUpdatePending = true
+        -- Debounce: wait 0.15 seconds before updating to batch rapid events
+        local debounceFrame = CreateFrame("Frame")
+        debounceFrame.elapsed = 0
+        debounceFrame:SetScript("OnUpdate", function()
+            this.elapsed = this.elapsed + arg1
+            if this.elapsed >= 0.15 then
+                this:SetScript("OnUpdate", nil)
+                bagUpdatePending = false
+                QuestItemBar:Update()
+            end
+        end)
     end, "QuestItemBar")
 
     addon.Modules.Events:Register("BAG_UPDATE_COOLDOWN", function()
