@@ -27,15 +27,8 @@ function Guda_SettingsPopup_OnLoad(self)
         title:SetFont(titleFont, 16, titleFlags)
     end
 
-    -- Set tab names
-    PanelTemplates_SetNumTabs(self, 3)
-    getglobal(self:GetName().."Tab1"):SetText("General")
-    getglobal(self:GetName().."Tab2"):SetText("Icons")
-    getglobal(self:GetName().."Tab3"):SetText("Quick Guide")
-    PanelTemplates_SetTab(self, 1)
-
     -- Set How to Use text
-    local instructions = getglobal(self:GetName().."_HowToUseTab_Instructions")
+    local instructions = getglobal("Guda_SettingsPopup_GuideTab_Instructions")
     if instructions then
         local text = "|cffffd100Tracking Items:|r\n" ..
                      "Alt + Left Click on any item in your bags to track it.\n" ..
@@ -54,30 +47,43 @@ function Guda_SettingsPopup_OnLoad(self)
     Guda:Debug("Settings popup loaded")
 end
 
--- Tab switching logic
-function Guda_SettingsPopup_Tab_OnClick(id)
-    local frame = Guda_SettingsPopup
-    PanelTemplates_SetTab(frame, id)
+-- Tab switching logic (GudaPlates style)
+function Guda_SettingsPopup_SelectTab(tabName)
+    -- Hide all tab content frames
+    local generalTab = getglobal("Guda_SettingsPopup_GeneralTab")
+    local iconsTab = getglobal("Guda_SettingsPopup_IconsTab")
+    local guideTab = getglobal("Guda_SettingsPopup_GuideTab")
 
-    -- Hide all tabs
-    getglobal(frame:GetName().."_GeneralTab"):Hide()
-    getglobal(frame:GetName().."_IconsTab"):Hide()
-    getglobal(frame:GetName().."_HowToUseTab"):Hide()
+    if generalTab then generalTab:Hide() end
+    if iconsTab then iconsTab:Hide() end
+    if guideTab then guideTab:Hide() end
 
-    -- Show selected tab
-    if id == 1 then
-        getglobal(frame:GetName().."_GeneralTab"):Show()
-    elseif id == 2 then
-        getglobal(frame:GetName().."_IconsTab"):Show()
-    else
-        getglobal(frame:GetName().."_HowToUseTab"):Show()
+    -- Reset all tab button backgrounds to inactive (0.1 alpha)
+    local generalBg = getglobal("Guda_SettingsPopup_GeneralTabButton_Bg")
+    local iconsBg = getglobal("Guda_SettingsPopup_IconsTabButton_Bg")
+    local guideBg = getglobal("Guda_SettingsPopup_GuideTabButton_Bg")
+
+    if generalBg then generalBg:SetTexture(1, 1, 1, 0.1) end
+    if iconsBg then iconsBg:SetTexture(1, 1, 1, 0.1) end
+    if guideBg then guideBg:SetTexture(1, 1, 1, 0.1) end
+
+    -- Show selected tab and highlight its button
+    if tabName == "general" then
+        if generalTab then generalTab:Show() end
+        if generalBg then generalBg:SetTexture(1, 1, 1, 0.3) end
+    elseif tabName == "icons" then
+        if iconsTab then iconsTab:Show() end
+        if iconsBg then iconsBg:SetTexture(1, 1, 1, 0.3) end
+    elseif tabName == "guide" then
+        if guideTab then guideTab:Show() end
+        if guideBg then guideBg:SetTexture(1, 1, 1, 0.3) end
     end
 end
 
 -- OnShow
 function Guda_SettingsPopup_OnShow(self)
     -- Default to General tab
-    Guda_SettingsPopup_Tab_OnClick(1)
+    Guda_SettingsPopup_SelectTab("general")
 
     -- Load current settings
     local bagColumns = Guda.Modules.DB:GetSetting("bagColumns") or 10
@@ -214,11 +220,6 @@ function Guda_SettingsPopup_OnShow(self)
     end
 
 
-    -- Update display (might be too tall for current frame size)
-    local frame = getglobal("Guda_SettingsPopup")
-    if frame then
-        frame:SetHeight(600)
-    end
 
     -- Apply border visibility
     if SettingsPopup.UpdateBorderVisibility then

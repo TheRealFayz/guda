@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="510" y="590"/>
+            <AbsDimension x="500" y="520"/>
         </Size>
 
         <Anchors>
@@ -14,12 +14,12 @@
             </Anchor>
         </Anchors>
 
-        <Backdrop bgFile="Interface\ChatFrame\ChatFrameBackground" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
             <BackgroundInsets>
                 <AbsInset left="11" right="12" top="12" bottom="11"/>
             </BackgroundInsets>
             <TileSize>
-                <AbsValue val="16"/>
+                <AbsValue val="32"/>
             </TileSize>
             <EdgeSize>
                 <AbsValue val="32"/>
@@ -33,7 +33,7 @@
                     <Anchors>
                         <Anchor point="TOP">
                             <Offset>
-                                <AbsDimension x="0" y="-18"/>
+                                <AbsDimension x="0" y="-20"/>
                             </Offset>
                         </Anchor>
                     </Anchors>
@@ -43,56 +43,12 @@
         </Layers>
 
         <Frames>
-            <!-- Tabs -->
-            <Button name="$parentTab1" inherits="CharacterFrameTabButtonTemplate" id="1">
-                <Anchors>
-                    <Anchor point="BOTTOMLEFT" relativePoint="BOTTOMLEFT" relativeTo="$parent">
-                        <Offset>
-                            <AbsDimension x="11" y="-30"/>
-                        </Offset>
-                    </Anchor>
-                </Anchors>
-                <Scripts>
-                    <OnClick>
-                        Guda_SettingsPopup_Tab_OnClick(1)
-                    </OnClick>
-                </Scripts>
-            </Button>
-            <Button name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2">
-                <Anchors>
-                    <Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT">
-                        <Offset>
-                            <AbsDimension x="-16" y="0"/>
-                        </Offset>
-                    </Anchor>
-                </Anchors>
-                <Scripts>
-                    <OnClick>
-                        Guda_SettingsPopup_Tab_OnClick(2)
-                    </OnClick>
-                </Scripts>
-            </Button>
-            <Button name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3">
-                <Anchors>
-                    <Anchor point="LEFT" relativeTo="$parentTab2" relativePoint="RIGHT">
-                        <Offset>
-                            <AbsDimension x="-16" y="0"/>
-                        </Offset>
-                    </Anchor>
-                </Anchors>
-                <Scripts>
-                    <OnClick>
-                        Guda_SettingsPopup_Tab_OnClick(3)
-                    </OnClick>
-                </Scripts>
-            </Button>
-
             <!-- Close Button -->
             <Button name="$parent_CloseButton" inherits="UIPanelCloseButton">
                 <Anchors>
                     <Anchor point="TOPRIGHT">
                         <Offset>
-                            <AbsDimension x="-10" y="-10"/>
+                            <AbsDimension x="-5" y="-5"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -103,18 +59,127 @@
                 </Scripts>
             </Button>
 
+            <!-- Tab Buttons (GudaPlates style) -->
+            <Button name="Guda_SettingsPopup_GeneralTabButton" enableMouse="true">
+                <Size>
+                    <AbsDimension x="150" y="28"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="20" y="-55"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <Texture name="$parent_Bg" setAllPoints="true">
+                            <Color r="1" g="1" b="1" a="0.3"/>
+                        </Texture>
+                    </Layer>
+                    <Layer level="OVERLAY">
+                        <FontString name="$parent_Text" inherits="GameFontNormal" text="General">
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnClick>
+                        Guda_SettingsPopup_SelectTab("general")
+                    </OnClick>
+                </Scripts>
+            </Button>
+
+            <Button name="Guda_SettingsPopup_IconsTabButton" enableMouse="true">
+                <Size>
+                    <AbsDimension x="150" y="28"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="Guda_SettingsPopup_GeneralTabButton" relativePoint="RIGHT">
+                        <Offset>
+                            <AbsDimension x="2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <Texture name="$parent_Bg" setAllPoints="true">
+                            <Color r="1" g="1" b="1" a="0.1"/>
+                        </Texture>
+                    </Layer>
+                    <Layer level="OVERLAY">
+                        <FontString name="$parent_Text" inherits="GameFontNormal" text="Icons">
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnClick>
+                        Guda_SettingsPopup_SelectTab("icons")
+                    </OnClick>
+                </Scripts>
+            </Button>
+
+            <Button name="Guda_SettingsPopup_GuideTabButton" enableMouse="true">
+                <Size>
+                    <AbsDimension x="150" y="28"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="Guda_SettingsPopup_IconsTabButton" relativePoint="RIGHT">
+                        <Offset>
+                            <AbsDimension x="2" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <Texture name="$parent_Bg" setAllPoints="true">
+                            <Color r="1" g="1" b="1" a="0.1"/>
+                        </Texture>
+                    </Layer>
+                    <Layer level="OVERLAY">
+                        <FontString name="$parent_Text" inherits="GameFontNormal" text="Quick Guide">
+                            <Anchors>
+                                <Anchor point="CENTER"/>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
+                <Scripts>
+                    <OnClick>
+                        Guda_SettingsPopup_SelectTab("guide")
+                    </OnClick>
+                </Scripts>
+            </Button>
+
             <!-- General Tab Content -->
-            <Frame name="$parent_GeneralTab" setAllPoints="true">
+            <Frame name="Guda_SettingsPopup_GeneralTab">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="15" y="-70"/>
+                        </Offset>
+                    </Anchor>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT">
+                        <Offset>
+                            <AbsDimension x="-15" y="15"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
                 <Frames>
                     <!-- Bag Columns Slider -->
                     <Slider name="Guda_SettingsPopup_BagColumnsSlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP">
+                            <Anchor point="TOPLEFT">
                                 <Offset>
-                                    <AbsDimension x="0" y="-90"/>
+                                    <AbsDimension x="5" y="-40"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -131,10 +196,10 @@
                     <!-- Bank Columns Slider -->
                     <Slider name="Guda_SettingsPopup_BankColumnsSlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_BagColumnsSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_BagColumnsSlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-40"/>
                                 </Offset>
@@ -153,10 +218,10 @@
                     <!-- Background Transparency Slider -->
                     <Slider name="Guda_SettingsPopup_BgTransparencySlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_BankColumnsSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_BankColumnsSlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-40"/>
                                 </Offset>
@@ -175,9 +240,9 @@
                     <!-- Lock Bags Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_LockBagsCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_BgTransparencySlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_BgTransparencySlider">
                                 <Offset>
-                                    <AbsDimension x="-215" y="-30"/>
+                                    <AbsDimension x="0" y="-30"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -196,7 +261,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_LockBagsCheckbox">
                                 <Offset>
-                                    <AbsDimension x="185" y="0"/>
+                                    <AbsDimension x="200" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -213,7 +278,7 @@
                     <!-- Show Search Bar Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_ShowSearchBarCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_LockBagsCheckbox">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_LockBagsCheckbox">
                                 <Offset>
                                     <AbsDimension x="0" y="-8"/>
                                 </Offset>
@@ -234,7 +299,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_ShowSearchBarCheckbox">
                                 <Offset>
-                                    <AbsDimension x="185" y="0"/>
+                                    <AbsDimension x="200" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -251,7 +316,7 @@
                     <!-- Hover Bagline Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_HoverBaglineCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_ShowSearchBarCheckbox">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_ShowSearchBarCheckbox">
                                 <Offset>
                                     <AbsDimension x="0" y="-8"/>
                                 </Offset>
@@ -272,7 +337,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_HoverBaglineCheckbox">
                                 <Offset>
-                                    <AbsDimension x="185" y="0"/>
+                                    <AbsDimension x="200" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -289,7 +354,7 @@
                     <!-- Reverse Stack Sort Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_ReverseStackSortCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_HoverBaglineCheckbox">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_HoverBaglineCheckbox">
                                 <Offset>
                                     <AbsDimension x="0" y="-8"/>
                                 </Offset>
@@ -305,12 +370,12 @@
                         </Scripts>
                     </CheckButton>
 
-                    <!-- View Types - Row below Reverse Stack Sort -->
+                    <!-- View Types -->
                     <Button name="Guda_SettingsPopup_BagViewTypeButton" inherits="UIPanelButtonTemplate">
-                        <Size><AbsDimension x="200" y="22"/></Size>
+                        <Size><AbsDimension x="180" y="25"/></Size>
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_ReverseStackSortCheckbox">
-                                <Offset><AbsDimension x="85" y="-8"/></Offset>
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_ReverseStackSortCheckbox">
+                                <Offset><AbsDimension x="0" y="-15"/></Offset>
                             </Anchor>
                         </Anchors>
                         <Scripts>
@@ -319,10 +384,10 @@
                     </Button>
 
                     <Button name="Guda_SettingsPopup_BankViewTypeButton" inherits="UIPanelButtonTemplate">
-                        <Size><AbsDimension x="200" y="22"/></Size>
+                        <Size><AbsDimension x="180" y="25"/></Size>
                         <Anchors>
                             <Anchor point="LEFT" relativeTo="Guda_SettingsPopup_BagViewTypeButton" relativePoint="RIGHT">
-                                <Offset><AbsDimension x="20" y="0"/></Offset>
+                                <Offset><AbsDimension x="55" y="0"/></Offset>
                             </Anchor>
                         </Anchors>
                         <Scripts>
@@ -332,38 +397,30 @@
                 </Frames>
             </Frame>
 
-            <!-- How to Use Tab Content -->
-            <Frame name="$parent_HowToUseTab" setAllPoints="true" hidden="true">
-                <Layers>
-                    <Layer level="ARTWORK">
-                        <FontString name="$parent_Instructions" inherits="GameFontHighlight" justifyH="LEFT" justifyV="TOP">
-                            <Size>
-                                <AbsDimension x="440" y="0"/>
-                            </Size>
-                            <Anchors>
-                                <Anchor point="TOPLEFT">
-                                    <Offset>
-                                        <AbsDimension x="30" y="-80"/>
-                                    </Offset>
-                                </Anchor>
-                            </Anchors>
-                        </FontString>
-                    </Layer>
-                </Layers>
-            </Frame>
-
             <!-- Icons Tab Content -->
-            <Frame name="$parent_IconsTab" setAllPoints="true" hidden="true">
+            <Frame name="Guda_SettingsPopup_IconsTab" hidden="true">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="15" y="-70"/>
+                        </Offset>
+                    </Anchor>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT">
+                        <Offset>
+                            <AbsDimension x="-15" y="15"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
                 <Frames>
                     <!-- Icon Size Slider -->
                     <Slider name="Guda_SettingsPopup_IconSizeSlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP">
+                            <Anchor point="TOPLEFT">
                                 <Offset>
-                                    <AbsDimension x="0" y="-90"/>
+                                    <AbsDimension x="5" y="-40"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -380,10 +437,10 @@
                     <!-- Icon Font Size Slider -->
                     <Slider name="Guda_SettingsPopup_IconFontSizeSlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_IconSizeSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_IconSizeSlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-40"/>
                                 </Offset>
@@ -402,10 +459,10 @@
                     <!-- Icon Spacing Slider -->
                     <Slider name="Guda_SettingsPopup_IconSpacingSlider" inherits="OptionsSliderTemplate">
                         <Size>
-                            <AbsDimension x="460" y="17"/>
+                            <AbsDimension x="450" y="17"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_IconFontSizeSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_IconFontSizeSlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-40"/>
                                 </Offset>
@@ -424,9 +481,9 @@
                     <!-- Quality Border Equipment Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_QualityBorderEquipmentCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_IconSpacingSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_IconSpacingSlider">
                                 <Offset>
-                                    <AbsDimension x="-215" y="-30"/>
+                                    <AbsDimension x="0" y="-30"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -445,7 +502,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_QualityBorderEquipmentCheckbox">
                                 <Offset>
-                                    <AbsDimension x="185" y="0"/>
+                                    <AbsDimension x="200" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -462,7 +519,7 @@
                     <!-- Mark Unusable Items Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_MarkUnusableCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_QualityBorderEquipmentCheckbox">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_QualityBorderEquipmentCheckbox">
                                 <Offset>
                                     <AbsDimension x="0" y="-8"/>
                                 </Offset>
@@ -483,7 +540,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_MarkUnusableCheckbox">
                                 <Offset>
-                                    <AbsDimension x="185" y="0"/>
+                                    <AbsDimension x="200" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -496,9 +553,39 @@
                             </OnClick>
                         </Scripts>
                     </CheckButton>
-
-
                 </Frames>
+            </Frame>
+
+            <!-- Guide Tab Content -->
+            <Frame name="Guda_SettingsPopup_GuideTab" hidden="true">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT">
+                        <Offset>
+                            <AbsDimension x="15" y="-90"/>
+                        </Offset>
+                    </Anchor>
+                    <Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT">
+                        <Offset>
+                            <AbsDimension x="-15" y="15"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <FontString name="$parent_Instructions" inherits="GameFontHighlight" justifyH="LEFT" justifyV="TOP">
+                            <Size>
+                                <AbsDimension x="440" y="0"/>
+                            </Size>
+                            <Anchors>
+                                <Anchor point="TOPLEFT">
+                                    <Offset>
+                                        <AbsDimension x="15" y="-15"/>
+                                    </Offset>
+                                </Anchor>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
             </Frame>
         </Frames>
 
