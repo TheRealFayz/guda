@@ -172,9 +172,12 @@ function QuestItemBar:Update()
     frame:Show()
 
     local pinnedItems = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
-    local buttonSize = 37
+    local buttonSize = addon.Modules.DB:GetSetting("questBarSize") or 36
     local spacing = 2
     local xOffset = 5
+
+    -- Update frame height based on button size
+    frame:SetHeight(buttonSize + 8)
     
     -- Used to keep track of which bag items are already displayed
     local usedBagSlots = {}
@@ -358,13 +361,37 @@ function QuestItemBar:Update()
 
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "LEFT", xOffset + (i-1) * (buttonSize + spacing), 0)
+        button:SetWidth(buttonSize)
+        button:SetHeight(buttonSize)
+
+        -- Resize all button textures to match button size
+        local icon = getglobal(button:GetName() .. "IconTexture")
+        if icon then
+            icon:SetWidth(buttonSize)
+            icon:SetHeight(buttonSize)
+        end
+
+        -- Scale border proportionally (64/37 is the standard ratio for WoW item buttons)
+        local borderSize = buttonSize * 64 / 37
+        local normalTex = getglobal(button:GetName() .. "NormalTexture")
+        if normalTex then
+            normalTex:SetWidth(borderSize)
+            normalTex:SetHeight(borderSize)
+        end
+
+        -- Resize empty slot background
+        local emptyBg = getglobal(button:GetName() .. "_EmptySlotBg")
+        if emptyBg then
+            emptyBg:SetWidth(buttonSize)
+            emptyBg:SetHeight(buttonSize)
+        end
 
         -- Update visual overlays (cooldown, etc)
         if Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(button)
         end
     end
-    
+
     -- Hide any extra buttons beyond current slots
     for j = slots + 1, table.getn(buttons) do
         local extra = buttons[j]
@@ -451,8 +478,8 @@ end
 function QuestItemBar:UpdateFlyout(parent)
     if not flyoutFrame then return end
     flyoutFrame.parent = parent
-    
-    local buttonSize = 37
+
+    local buttonSize = addon.Modules.DB:GetSetting("questBarSize") or 36
     local spacing = 2
     
     -- Collect items not in main buttons
@@ -573,8 +600,33 @@ function QuestItemBar:UpdateFlyout(parent)
         
         btn:ClearAllPoints()
         btn:SetPoint("BOTTOM", flyoutFrame, "BOTTOM", 0, (i-1) * (buttonSize + spacing) + 5)
+        btn:SetWidth(buttonSize)
+        btn:SetHeight(buttonSize)
+
+        -- Resize all button textures to match button size
+        local btnIcon = getglobal(btn:GetName() .. "IconTexture")
+        if btnIcon then
+            btnIcon:SetWidth(buttonSize)
+            btnIcon:SetHeight(buttonSize)
+        end
+
+        -- Scale border proportionally (64/37 is the standard ratio for WoW item buttons)
+        local borderSize = buttonSize * 64 / 37
+        local btnNormalTex = getglobal(btn:GetName() .. "NormalTexture")
+        if btnNormalTex then
+            btnNormalTex:SetWidth(borderSize)
+            btnNormalTex:SetHeight(borderSize)
+        end
+
+        -- Resize empty slot background
+        local btnEmptyBg = getglobal(btn:GetName() .. "_EmptySlotBg")
+        if btnEmptyBg then
+            btnEmptyBg:SetWidth(buttonSize)
+            btnEmptyBg:SetHeight(buttonSize)
+        end
+
         btn:Show()
-        
+
         if Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(btn)
         end

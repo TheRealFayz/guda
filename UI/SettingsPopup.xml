@@ -478,10 +478,54 @@
                         </Scripts>
                     </Slider>
 
+                    <!-- Quest Item Bar Size Slider -->
+                    <Slider name="Guda_SettingsPopup_QuestBarSizeSlider" inherits="OptionsSliderTemplate">
+                        <Size>
+                            <AbsDimension x="450" y="17"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_IconSpacingSlider">
+                                <Offset>
+                                    <AbsDimension x="0" y="-40"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_SettingsPopup_QuestBarSizeSlider_OnLoad(this)
+                            </OnLoad>
+                            <OnValueChanged>
+                                Guda_SettingsPopup_QuestBarSizeSlider_OnValueChanged(this)
+                            </OnValueChanged>
+                        </Scripts>
+                    </Slider>
+
+                    <!-- Tracked Item Bar Size Slider -->
+                    <Slider name="Guda_SettingsPopup_TrackedBarSizeSlider" inherits="OptionsSliderTemplate">
+                        <Size>
+                            <AbsDimension x="450" y="17"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_QuestBarSizeSlider">
+                                <Offset>
+                                    <AbsDimension x="0" y="-40"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_SettingsPopup_TrackedBarSizeSlider_OnLoad(this)
+                            </OnLoad>
+                            <OnValueChanged>
+                                Guda_SettingsPopup_TrackedBarSizeSlider_OnValueChanged(this)
+                            </OnValueChanged>
+                        </Scripts>
+                    </Slider>
+
                     <!-- Quality Border Equipment Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_QualityBorderEquipmentCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_IconSpacingSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_TrackedBarSizeSlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-30"/>
                                 </Offset>

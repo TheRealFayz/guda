@@ -122,6 +122,8 @@ function Guda_SettingsPopup_OnShow(self)
     local bgTransparency = Guda.Modules.DB:GetSetting("bgTransparency") or 0.15
     local bagViewType = Guda.Modules.DB:GetSetting("bagViewType") or "single"
     local bankViewType = Guda.Modules.DB:GetSetting("bankViewType") or "single"
+    local questBarSize = Guda.Modules.DB:GetSetting("questBarSize") or 36
+    local trackedBarSize = Guda.Modules.DB:GetSetting("trackedBarSize") or 36
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -130,6 +132,8 @@ function Guda_SettingsPopup_OnShow(self)
     local iconFontSizeSlider = getglobal("Guda_SettingsPopup_IconFontSizeSlider")
     local iconSpacingSlider = getglobal("Guda_SettingsPopup_IconSpacingSlider")
     local bgTransparencySlider = getglobal("Guda_SettingsPopup_BgTransparencySlider")
+    local questBarSizeSlider = getglobal("Guda_SettingsPopup_QuestBarSizeSlider")
+    local trackedBarSizeSlider = getglobal("Guda_SettingsPopup_TrackedBarSizeSlider")
     local lockCheckbox = getglobal("Guda_SettingsPopup_LockBagsCheckbox")
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
     local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
@@ -169,6 +173,14 @@ function Guda_SettingsPopup_OnShow(self)
 
     if bgTransparencySlider then
         bgTransparencySlider:SetValue(bgTransparency)
+    end
+
+    if questBarSizeSlider then
+        questBarSizeSlider:SetValue(questBarSize)
+    end
+
+    if trackedBarSizeSlider then
+        trackedBarSizeSlider:SetValue(trackedBarSize)
     end
 
     if lockCheckbox then
@@ -511,6 +523,76 @@ function Guda_SettingsPopup_IconSpacingSlider_OnValueChanged(self)
             Guda.Modules.BankFrame:UpdateFooterVisibility()
         end
         Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Quest Bar Size Slider OnLoad
+function Guda_SettingsPopup_QuestBarSizeSlider_OnLoad(self)
+    getglobal(self:GetName().."Low"):SetText("22px")
+    getglobal(self:GetName().."High"):SetText("64px")
+
+    local text = getglobal(self:GetName().."Text")
+    text:SetText("Quest bar size")
+
+    -- Increase font size
+    local font, _, flags = text:GetFont()
+    if font then
+        text:SetFont(font, 12, flags)
+    end
+
+    self:SetMinMaxValues(22, 64)
+    self:SetValueStep(1)
+
+    local currentValue = Guda.Modules.DB:GetSetting("questBarSize") or 36
+    self:SetValue(currentValue)
+end
+
+-- Quest Bar Size Slider OnValueChanged
+function Guda_SettingsPopup_QuestBarSizeSlider_OnValueChanged(self)
+    local value = math.floor(self:GetValue() + 0.5)
+
+    getglobal(self:GetName().."Text"):SetText("Quest bar size: " .. value .. "px")
+
+    Guda.Modules.DB:SetSetting("questBarSize", value)
+
+    -- Update quest item bar
+    if Guda.Modules.QuestItemBar and Guda.Modules.QuestItemBar.Update then
+        Guda.Modules.QuestItemBar:Update()
+    end
+end
+
+-- Tracked Bar Size Slider OnLoad
+function Guda_SettingsPopup_TrackedBarSizeSlider_OnLoad(self)
+    getglobal(self:GetName().."Low"):SetText("22px")
+    getglobal(self:GetName().."High"):SetText("64px")
+
+    local text = getglobal(self:GetName().."Text")
+    text:SetText("Tracked bar size")
+
+    -- Increase font size
+    local font, _, flags = text:GetFont()
+    if font then
+        text:SetFont(font, 12, flags)
+    end
+
+    self:SetMinMaxValues(22, 64)
+    self:SetValueStep(1)
+
+    local currentValue = Guda.Modules.DB:GetSetting("trackedBarSize") or 36
+    self:SetValue(currentValue)
+end
+
+-- Tracked Bar Size Slider OnValueChanged
+function Guda_SettingsPopup_TrackedBarSizeSlider_OnValueChanged(self)
+    local value = math.floor(self:GetValue() + 0.5)
+
+    getglobal(self:GetName().."Text"):SetText("Tracked bar size: " .. value .. "px")
+
+    Guda.Modules.DB:SetSetting("trackedBarSize", value)
+
+    -- Update tracked item bar
+    if Guda.Modules.TrackedItemBar and Guda.Modules.TrackedItemBar.Update then
+        Guda.Modules.TrackedItemBar:Update()
     end
 end
 
