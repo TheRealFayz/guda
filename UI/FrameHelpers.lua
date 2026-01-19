@@ -45,9 +45,9 @@ function Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, 
         end
         if showHome then
             table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
-            return
         end
-        -- If Home is disabled, fall through to normal categorization
+        -- Always return - if Home is disabled, Hearthstone is hidden completely
+        return
     elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
         table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
         return
