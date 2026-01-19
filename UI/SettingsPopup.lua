@@ -1479,7 +1479,7 @@ local editorMatchMode = "any"
 local editorRules = {}
 local editorRuleFrames = {}
 local RULE_ROW_HEIGHT = 28
-local MAX_RULES = 6
+local MAX_RULES = 22
 
 -- Rule type options for dropdown
 local RULE_TYPE_OPTIONS = {
@@ -1622,7 +1622,7 @@ local function GetRuleRowFrame(index)
     local rowName = "Guda_CategoryEditor_RuleRow" .. index
     local row = CreateFrame("Frame", rowName, container)
     row:SetHeight(RULE_ROW_HEIGHT)
-    row:SetWidth(360)
+    row:SetWidth(310)
     row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -((index - 1) * RULE_ROW_HEIGHT))
 
     -- Rule type dropdown button
@@ -1682,20 +1682,43 @@ local function GetRuleRowFrame(index)
     return row
 end
 
--- Update rules display
+-- Number of visible rule rows in the scroll frame
+local VISIBLE_RULES = 10
+
+-- Update rules display with scroll support
 function Guda_CategoryEditor_UpdateRulesDisplay()
     local numRules = table.getn(editorRules)
+    local scrollFrame = getglobal("Guda_CategoryEditor_RulesScrollFrame")
 
-    for i = 1, MAX_RULES do
+    -- Update rules count label
+    local rulesLabel = getglobal("Guda_CategoryEditor_RulesLabel")
+    if rulesLabel then
+        rulesLabel:SetText("Rules (" .. numRules .. "/" .. MAX_RULES .. "):")
+    end
+
+    -- Update scroll frame
+    if scrollFrame then
+        FauxScrollFrame_Update(scrollFrame, numRules, VISIBLE_RULES, RULE_ROW_HEIGHT)
+    end
+
+    -- Get scroll offset
+    local offset = 0
+    if scrollFrame then
+        offset = FauxScrollFrame_GetOffset(scrollFrame) or 0
+    end
+
+    for i = 1, VISIBLE_RULES do
         local row = GetRuleRowFrame(i)
+        local ruleIndex = i + offset
+
         if row then
-            if i <= numRules then
-                local rule = editorRules[i]
-                row.ruleIndex = i
-                row.typeBtn.ruleIndex = i
-                row.valueBox.ruleIndex = i
-                row.valueBtn.ruleIndex = i
-                row.deleteBtn.ruleIndex = i
+            if ruleIndex <= numRules then
+                local rule = editorRules[ruleIndex]
+                row.ruleIndex = ruleIndex
+                row.typeBtn.ruleIndex = ruleIndex
+                row.valueBox.ruleIndex = ruleIndex
+                row.valueBtn.ruleIndex = ruleIndex
+                row.deleteBtn.ruleIndex = ruleIndex
 
                 -- Set type button text
                 local typeName = "Select Type"

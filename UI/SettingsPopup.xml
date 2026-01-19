@@ -786,7 +786,7 @@
     <!-- Category Editor Popup -->
     <Frame name="Guda_CategoryEditor" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="400" y="380"/>
+            <AbsDimension x="400" y="480"/>
         </Size>
 
         <Anchors>
@@ -935,10 +935,10 @@
                 </Scripts>
             </CheckButton>
 
-            <!-- Rules Container -->
-            <Frame name="Guda_CategoryEditor_RulesContainer">
+            <!-- Rules ScrollFrame -->
+            <ScrollFrame name="Guda_CategoryEditor_RulesScrollFrame" inherits="FauxScrollFrameTemplate">
                 <Size>
-                    <AbsDimension x="360" y="180"/>
+                    <AbsDimension x="335" y="280"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOPLEFT">
@@ -946,6 +946,21 @@
                             <AbsDimension x="20" y="-130"/>
                         </Offset>
                     </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnVerticalScroll>
+                        FauxScrollFrame_OnVerticalScroll(28, Guda_CategoryEditor_UpdateRulesDisplay)
+                    </OnVerticalScroll>
+                </Scripts>
+            </ScrollFrame>
+
+            <!-- Rules Container (child of scroll frame) -->
+            <Frame name="Guda_CategoryEditor_RulesContainer">
+                <Size>
+                    <AbsDimension x="310" y="280"/>
+                </Size>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="Guda_CategoryEditor_RulesScrollFrame" relativePoint="TOPLEFT"/>
                 </Anchors>
             </Frame>
 
