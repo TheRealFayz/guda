@@ -74,10 +74,13 @@ function TrackedItemBar:Update()
     frame:Show()
 
     self:ScanForTrackedItems()
-    
-    local buttonSize = 37
+
+    local buttonSize = addon.Modules.DB:GetSetting("trackedBarSize") or 36
     local spacing = 2
     local xOffset = 5
+
+    -- Update frame height based on button size
+    frame:SetHeight(buttonSize + 8)
     
     -- Hide all buttons initially
     for _, btn in ipairs(buttons) do
@@ -162,9 +165,34 @@ function TrackedItemBar:Update()
 
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "LEFT", xOffset + (i-1) * (buttonSize + spacing), 0)
+        button:SetWidth(buttonSize)
+        button:SetHeight(buttonSize)
+
+        -- Resize all button textures to match button size
+        local icon = getglobal(button:GetName() .. "IconTexture")
+        if icon then
+            icon:SetWidth(buttonSize)
+            icon:SetHeight(buttonSize)
+        end
+
+        -- Scale border proportionally (64/37 is the standard ratio for WoW item buttons)
+        local borderSize = buttonSize * 64 / 37
+        local normalTex = getglobal(button:GetName() .. "NormalTexture")
+        if normalTex then
+            normalTex:SetWidth(borderSize)
+            normalTex:SetHeight(borderSize)
+        end
+
+        -- Resize empty slot background
+        local emptyBg = getglobal(button:GetName() .. "_EmptySlotBg")
+        if emptyBg then
+            emptyBg:SetWidth(buttonSize)
+            emptyBg:SetHeight(buttonSize)
+        end
+
         button:Show()
     end
-    
+
     local numItems = table.getn(trackedItemsInfo)
     if numItems > 0 then
         local newWidth = xOffset * 2 + numItems * (buttonSize + spacing) - spacing
@@ -184,7 +212,7 @@ function TrackedItemBar:Initialize()
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     
-    addon:ApplyBackdrop(frame, "DEFAULT_FRAME")
+    --addon:ApplyBackdrop(frame, "DEFAULT_FRAME")
     
     -- Handle dragging
     frame:RegisterForDrag("LeftButton")

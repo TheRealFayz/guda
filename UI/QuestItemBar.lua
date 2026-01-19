@@ -62,15 +62,39 @@ function QuestItemBar:CheckQuestItemUsable(bagID, slotID)
     end
 
     -- Fallback check for quest category if not detected from tooltip
+    local link = GetContainerItemLink(bagID, slotID)
+    local itemID
+    local itemCategory, itemType
+    
+    if link and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID and addon.Modules.Utils.GetItemInfoSafe then
+        itemID = addon.Modules.Utils:ExtractItemID(link)
+        if itemID then
+            _, _, _, _, itemCategory, itemType = addon.Modules.Utils:GetItemInfoSafe(itemID)
+        end
+    end
+
+    -- If it's a Weapon or Armor, it shouldn't be a QuestItem unless it's specifically categorized as Quest
+    -- This avoids "Use:" equipment showing up in the quest bar
+    if itemCategory == "Weapon" or itemCategory == "Armor" or itemType == "Weapon" or itemType == "Armor" then
+        if itemCategory ~= "Quest" and itemType ~= "Quest" then
+            isQuestItem = false
+            isQuestStarter = false
+        end
+    end
+
     if not isQuestItem then
-        local link = GetContainerItemLink(bagID, slotID)
-        if link and addon.Modules.Utils and addon.Modules.Utils.ExtractItemID and addon.Modules.Utils.GetItemInfoSafe then
-            local itemID = addon.Modules.Utils:ExtractItemID(link)
-            if itemID then
-                local _, _, _, _, itemCategory, itemType = addon.Modules.Utils:GetItemInfoSafe(itemID)
-                if itemCategory == "Quest" or itemType == "Quest" then
-                    isQuestItem = true
-                end
+        if itemCategory == "Quest" or itemType == "Quest" then
+            isQuestItem = true
+        end
+    end
+
+    -- Check the QuestItemsDB for known faction-specific quest items
+    if not isQuestItem then
+        if itemID and addon.IsQuestItemByID then
+            local playerFaction = UnitFactionGroup("player")
+            local isDBQuestItem = addon:IsQuestItemByID(itemID, playerFaction)
+            if isDBQuestItem then
+                isQuestItem = true
             end
         end
     end
@@ -90,7 +114,7 @@ function QuestItemBar:ScanForQuestItems()
             if texture then
                 -- Single combined check instead of two separate tooltip scans
                 local isQuest, isStarter, isUsable = self:CheckQuestItemUsable(bagID, slotID)
-                if isQuest and isUsable then
+                if isQuest and isUsable and not isStarter then
                     table.insert(questItems, {
                         bagID = bagID,
                         slotID = slotID,
@@ -157,9 +181,12 @@ function QuestItemBar:Update()
     frame:Show()
 
     local pinnedItems = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
-    local buttonSize = 37
+    local buttonSize = addon.Modules.DB:GetSetting("questBarSize") or 36
     local spacing = 2
     local xOffset = 5
+
+    -- Update frame height based on button size
+    frame:SetHeight(buttonSize + 8)
     
     -- Used to keep track of which bag items are already displayed
     local usedBagSlots = {}
@@ -343,13 +370,37 @@ function QuestItemBar:Update()
 
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "LEFT", xOffset + (i-1) * (buttonSize + spacing), 0)
+        button:SetWidth(buttonSize)
+        button:SetHeight(buttonSize)
+
+        -- Resize all button textures to match button size
+        local icon = getglobal(button:GetName() .. "IconTexture")
+        if icon then
+            icon:SetWidth(buttonSize)
+            icon:SetHeight(buttonSize)
+        end
+
+        -- Scale border proportionally (64/37 is the standard ratio for WoW item buttons)
+        local borderSize = buttonSize * 64 / 37
+        local normalTex = getglobal(button:GetName() .. "NormalTexture")
+        if normalTex then
+            normalTex:SetWidth(borderSize)
+            normalTex:SetHeight(borderSize)
+        end
+
+        -- Resize empty slot background
+        local emptyBg = getglobal(button:GetName() .. "_EmptySlotBg")
+        if emptyBg then
+            emptyBg:SetWidth(buttonSize)
+            emptyBg:SetHeight(buttonSize)
+        end
 
         -- Update visual overlays (cooldown, etc)
         if Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(button)
         end
     end
-    
+
     -- Hide any extra buttons beyond current slots
     for j = slots + 1, table.getn(buttons) do
         local extra = buttons[j]
@@ -436,8 +487,8 @@ end
 function QuestItemBar:UpdateFlyout(parent)
     if not flyoutFrame then return end
     flyoutFrame.parent = parent
-    
-    local buttonSize = 37
+
+    local buttonSize = addon.Modules.DB:GetSetting("questBarSize") or 36
     local spacing = 2
     
     -- Collect items not in main buttons
@@ -558,8 +609,33 @@ function QuestItemBar:UpdateFlyout(parent)
         
         btn:ClearAllPoints()
         btn:SetPoint("BOTTOM", flyoutFrame, "BOTTOM", 0, (i-1) * (buttonSize + spacing) + 5)
+        btn:SetWidth(buttonSize)
+        btn:SetHeight(buttonSize)
+
+        -- Resize all button textures to match button size
+        local btnIcon = getglobal(btn:GetName() .. "IconTexture")
+        if btnIcon then
+            btnIcon:SetWidth(buttonSize)
+            btnIcon:SetHeight(buttonSize)
+        end
+
+        -- Scale border proportionally (64/37 is the standard ratio for WoW item buttons)
+        local borderSize = buttonSize * 64 / 37
+        local btnNormalTex = getglobal(btn:GetName() .. "NormalTexture")
+        if btnNormalTex then
+            btnNormalTex:SetWidth(borderSize)
+            btnNormalTex:SetHeight(borderSize)
+        end
+
+        -- Resize empty slot background
+        local btnEmptyBg = getglobal(btn:GetName() .. "_EmptySlotBg")
+        if btnEmptyBg then
+            btnEmptyBg:SetWidth(buttonSize)
+            btnEmptyBg:SetHeight(buttonSize)
+        end
+
         btn:Show()
-        
+
         if Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(btn)
         end
@@ -593,7 +669,7 @@ function QuestItemBar:Initialize()
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     
-    addon:ApplyBackdrop(frame, "DEFAULT_FRAME")
+    --addon:ApplyBackdrop(frame, "DEFAULT_FRAME")
     
     -- Create flyout frame
     flyoutFrame = CreateFrame("Frame", "Guda_QuestItemFlyout", UIParent)

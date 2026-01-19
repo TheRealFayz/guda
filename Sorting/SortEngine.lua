@@ -590,10 +590,17 @@ local function AddSortKeys(items)
 				item.isMount = isMount
 
 				-- Class and slot ordering
-				if itemRarity == 0 or IsItemGrayTooltip(item.bagID, item.slot, item.data.link) then
+				-- Check for items that should be treated as junk:
+				-- 1. Gray items (quality 0)
+				-- 2. Items with gray tooltip
+				-- 3. White equippable items (quality 1 Weapon/Armor) - vendor trash
+				local isGrayItem = itemRarity == 0 or IsItemGrayTooltip(item.bagID, item.slot, item.data.link)
+				local isWhiteEquip = (itemRarity == 1) and (itemCategory == "Weapon" or itemCategory == "Armor")
+
+				if isGrayItem or isWhiteEquip then
 					item.sortedClass = CATEGORY_ORDER["Junk"] or 99
 					item.equipSlotOrder = 999
-					item.isEquippable = false -- Treat gray gear as junk, not gear
+					item.isEquippable = false -- Treat junk gear as junk, not gear
 				elseif isEquippable then
 					item.sortedClass = 1 -- All equippable gear gets priority class
 					item.equipSlotOrder = EQUIP_SLOT_ORDER[itemSubType] or 999
@@ -607,6 +614,12 @@ local function AddSortKeys(items)
 							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
 						elseif IsQuestItemTooltip(item.bagID, item.slot) then
 							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
+						elseif addon.IsQuestItemByID then
+							-- Check QuestItemsDB for faction-specific quest items
+							local playerFaction = UnitFactionGroup("player")
+							if addon:IsQuestItemByID(itemID, playerFaction) then
+								item.sortedClass = CATEGORY_ORDER["Quest"] or 7
+							end
 						end
 					end
 					item.equipSlotOrder = 999
@@ -635,6 +648,12 @@ local function AddSortKeys(items)
 					item.isQuest = true
 					if IsQuestItemStarter(item.bagID, item.slot) then item.isQuestStarter = true end
 					if IsQuestItemUsable(item.bagID, item.slot) then item.isQuestUsable = true end
+				elseif addon.IsQuestItemByID then
+					-- Check QuestItemsDB for faction-specific quest items
+					local playerFaction = UnitFactionGroup("player")
+					if addon:IsQuestItemByID(itemID, playerFaction) then
+						item.isQuest = true
+					end
 				end
 
 				-- Texture pattern for grouping similar items (especially trade goods)
@@ -1030,12 +1049,19 @@ local function BuildGreyTailPositions(bagIDs, greyCount)
 	return tailSlots
 end
 
--- Split a list of collected items into non-greys and greys (quality 0)
+-- Split a list of collected items into non-junk and junk items
+-- Junk includes: gray items (quality 0), gray tooltip items, white equippable items (quality 1 Weapon/Armor)
 local function SplitGreyItems(items)
     local nonGreys, greys = {}, {}
     for _, item in ipairs(items) do
-        -- Use same logic as AddSortKeys for determining Junk/Grey status (stability)
-        if tonumber(item.quality or 0) == 0 or IsItemGrayTooltip(item.bagID, item.slot, item.data.link) then
+        -- Use same logic as AddSortKeys for determining Junk status (stability)
+        local quality = tonumber(item.quality or 0)
+        local isGray = quality == 0 or IsItemGrayTooltip(item.bagID, item.slot, item.data.link)
+        -- White equippable items (Weapon/Armor) are also treated as junk
+        local itemClass = item.class or ""
+        local isWhiteEquip = (quality == 1) and (itemClass == "Weapon" or itemClass == "Armor")
+
+        if isGray or isWhiteEquip then
             table.insert(greys, item)
         else
             table.insert(nonGreys, item)

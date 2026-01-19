@@ -78,6 +78,9 @@ end
 
 -- OnShow
 function Guda_BagFrame_OnShow(self)
+	-- Play bag open sound
+	PlaySound("igBackPackOpen")
+
 -- Save bag data when opening bags
 	addon.Modules.BagScanner:SaveToDatabase()
 	addon.Modules.MoneyTracker:Update()
@@ -121,6 +124,9 @@ end
 
 -- OnHide
 function Guda_BagFrame_OnHide(self)
+	-- Play bag close sound
+	PlaySound("igBackPackClose")
+
 	-- Close any open dropdown menus when the bag frame is hidden
 	CloseDropDownMenus()
 
@@ -379,6 +385,9 @@ function BagFrame:Update()
 	-- Update money
 	self:UpdateMoney()
 
+	-- Update hearthstone
+	self:UpdateHearthstone()
+
 	-- Update bag slots info
 	self:UpdateBagSlotsInfo(bagData, isOtherChar)
 
@@ -498,9 +507,16 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             headerIdx = headerIdx + 1
             header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", startX + currentX, startY - currentY)
             header:SetWidth(blockWidth)
-            
+
+            -- Get display name from category definition
             local displayName = catName
-            header.fullName = catName
+            if addon.Modules.CategoryManager then
+                local catDef = addon.Modules.CategoryManager:GetCategory(catName)
+                if catDef and catDef.name then
+                    displayName = catDef.name
+                end
+            end
+            header.fullName = displayName
             header.isShortened = false
             if string.len(displayName) > 8 and numItems < 2 then
                 displayName = string.sub(displayName, 1, 6) .. "..."
@@ -564,6 +580,10 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             hasAnyBottom = true
             break
         end
+    end
+    -- Also check if Empty section should show
+    if totalFreeSlots > 0 then
+        hasAnyBottom = true
     end
 
     if hasAnyBottom then
@@ -927,6 +947,141 @@ function BagFrame:CreateMoneyFrame()
 	moneyFrame:SetWidth(180)
 	moneyFrame:SetHeight(35)
 	addon:Debug("MoneyFrame created via CreateMoneyFrame")
+end
+
+-- Hearthstone item ID
+local HEARTHSTONE_ID = 6948
+
+-- Create hearthstone display frame
+function BagFrame:CreateHearthstoneFrame()
+	local frameName = "Guda_BagFrame_HearthstoneFrame"
+	if getglobal(frameName) then return end
+
+	local frame = CreateFrame("Button", frameName, Guda_BagFrame)
+	frame:SetWidth(20)
+	frame:SetHeight(20)
+	frame:SetPoint("BOTTOMRIGHT", Guda_BagFrame, "BOTTOMRIGHT", -150, 16)
+	frame:SetFrameStrata("HIGH")
+	frame:SetFrameLevel(10)
+
+	-- Icon texture
+	local icon = frame:CreateTexture(frameName .. "_Icon", "ARTWORK")
+	icon:SetAllPoints(frame)
+	icon:SetTexture("Interface\\Icons\\INV_Misc_Rune_01")
+
+	-- Cooldown frame (use Model type with CooldownFrameTemplate in vanilla)
+	local cooldown = CreateFrame("Model", frameName .. "_Cooldown", frame, "CooldownFrameTemplate")
+	cooldown:SetAllPoints(frame)
+	cooldown:EnableMouse(false)
+	frame.cooldown = cooldown
+
+	-- Enable mouse and clicks
+	frame:EnableMouse(true)
+	frame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+	frame:SetScript("OnEnter", function()
+		BagFrame:ShowHearthstoneTooltip(this)
+	end)
+	frame:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+	frame:SetScript("OnClick", function()
+		BagFrame:UseHearthstone()
+	end)
+	frame:SetScript("OnMouseUp", function()
+		if arg1 == "LeftButton" or arg1 == "RightButton" then
+			BagFrame:UseHearthstone()
+		end
+	end)
+
+	addon:Debug("HearthstoneFrame created")
+end
+
+-- Find hearthstone in bags
+function BagFrame:FindHearthstone()
+	for bag = 0, 4 do
+		local numSlots = GetContainerNumSlots(bag)
+		for slot = 1, numSlots do
+			local link = GetContainerItemLink(bag, slot)
+			if link then
+				local itemId = addon.Modules.Utils:ExtractItemID(link)
+				if itemId and itemId == HEARTHSTONE_ID then
+					return bag, slot, link
+				end
+			end
+		end
+	end
+	return nil, nil, nil
+end
+
+-- Update hearthstone display
+function BagFrame:UpdateHearthstone()
+	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+	local frame = getglobal("Guda_BagFrame_HearthstoneFrame")
+
+	if hideFooter then
+		if frame then frame:Hide() end
+		return
+	end
+
+	if not frame then
+		self:CreateHearthstoneFrame()
+		frame = getglobal("Guda_BagFrame_HearthstoneFrame")
+	end
+
+	if not frame then return end
+
+	local bag, slot, link = self:FindHearthstone()
+
+	if bag then
+		frame:SetAlpha(1)
+		frame:Show()
+
+		-- Update cooldown
+		local start, duration, enable = GetContainerItemCooldown(bag, slot)
+		if frame.cooldown and start and duration and duration > 0 then
+			CooldownFrame_SetTimer(frame.cooldown, start, duration, enable)
+		elseif frame.cooldown then
+			frame.cooldown:Hide()
+		end
+
+		-- Store location for use
+		frame.bag = bag
+		frame.slot = slot
+		frame.link = link
+	else
+		frame:SetAlpha(0.3)
+		frame:Show()
+		frame.bag = nil
+		frame.slot = nil
+		frame.link = nil
+		if frame.cooldown then
+			frame.cooldown:Hide()
+		end
+	end
+end
+
+-- Show hearthstone tooltip
+function BagFrame:ShowHearthstoneTooltip(frame)
+	if frame.bag and frame.slot then
+		GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+		GameTooltip:SetBagItem(frame.bag, frame.slot)
+		GameTooltip:Show()
+	else
+		GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+		GameTooltip:ClearLines()
+		GameTooltip:AddLine("Hearthstone", 1, 1, 1)
+		GameTooltip:AddLine("Not in bags", 1, 0, 0)
+		GameTooltip:Show()
+	end
+end
+
+-- Use hearthstone
+function BagFrame:UseHearthstone()
+	local frame = getglobal("Guda_BagFrame_HearthstoneFrame")
+	if frame and frame.bag and frame.slot then
+		UseContainerItem(frame.bag, frame.slot)
+	end
 end
 
 -- Setup tooltip on toolbar empty space
@@ -1883,17 +2038,21 @@ function BagFrame:UpdateFooterVisibility()
 	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
 	local toolbar = getglobal("Guda_BagFrame_Toolbar")
 	local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
+	local hearthstoneFrame = getglobal("Guda_BagFrame_HearthstoneFrame")
 
 	if hideFooter then
 		if toolbar then toolbar:Hide() end
 		if moneyFrame then moneyFrame:Hide() end
+		if hearthstoneFrame then hearthstoneFrame:Hide() end
 	else
 		if toolbar then toolbar:Show() end
 		if moneyFrame then moneyFrame:Show() end
-		
+		if hearthstoneFrame then hearthstoneFrame:Show() end
+
 		-- Trigger layout updates to ensure they are correctly positioned
 		self:UpdateBaglineLayout()
 		self:UpdateMoney()
+		self:UpdateHearthstone()
 	end
 end
 
